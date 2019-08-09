@@ -19,6 +19,8 @@ tile_processor = {editable = true,path = "."}
 Click = ">=6.0"
 psycopg2 = "*"
 psutil = "*"
+pandas = "*"
+matplotlib = "*"
 
 [requires]
 python_version = "3.6"

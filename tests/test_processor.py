@@ -10,7 +10,8 @@ from tile_processor import processor
 class TestThreadProcessor:
     def test_thread_executor(self):
 
-        def sample_worker(arg1=None, arg2=None):
+        def sample_worker(arg0, arg1=None, arg2=None):
+            print(arg0)
             return arg1,arg2
 
         tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']

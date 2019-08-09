@@ -106,3 +106,4 @@ ENV/
 
 # KDE
 .directory
+.Rproj.user

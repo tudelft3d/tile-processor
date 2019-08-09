@@ -8,17 +8,17 @@ import logging
 
 # -------------------
 # Test logging setup
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# add formatter to ch
-ch.setFormatter(formatter)
-# add ch to logger
-logger.addHandler(ch)
+log = logging.getLogger(__name__)
+# log.setLevel(logging.DEBUG)
+# # create console handler and set level to debug
+# ch = logging.StreamHandler()
+# ch.setLevel(logging.DEBUG)
+# # create formatter
+# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+# # add formatter to ch
+# ch.setFormatter(formatter)
+# # add ch to log
+# log.addHandler(ch)
 # -------------------
 
 
@@ -45,7 +45,7 @@ class ParallelProcessorFactory:
 
 class ThreadProcessor:
     """For multithreaded processing."""
-    def process(self, threads, tiles, worker, **worker_kwargs):
+    def process(self, threads, monitor_log, monitor_interval, tiles, worker, **worker_kwargs):
         """Runs the workers asynchronously, using a `ThreadPoolExecutor <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_.
         Yields the results from the worker.
 
@@ -54,18 +54,20 @@ class ThreadProcessor:
         :param worker: A callable worker, created by :meth:`~.worker.WorkerFactory.create`. For example in case of :class:`~.worker.ThreedfierWorker` you need to pass the :meth:`~.worker.ThreedfierWorker.execute` callable, and the the class instance.
         :param worker_kwargs: Arguments passed to the worker
         """
-        logger.debug(f"Running {self.__class__.__name__}")
+        log.debug(f"Running {self.__class__.__name__}")
+        log.debug(f"threads: {threads}")
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            future_to_tile = {executor.submit(worker, **worker_kwargs): tile for tile in tiles}
+            # TODO: solve where to pass the tile_id to the worker, because it shouldnt be a hack here below
+            future_to_tile = {executor.submit(worker, monitor_log, monitor_interval, tile, **worker_kwargs): tile for tile in tiles}
             for future in as_completed(future_to_tile):
                 tile = future_to_tile[future]
                 try:
                     # yield the data that is created/returned by the worker
                     yield future.result()
                 except Exception as e:
-                    logger.exception(f"Tile {tile} raised an exception: {e}")
+                    log.exception(f"Tile {tile} raised an exception: {e}")
                 else:
-                    logger.info(f"Done with tile {tile}")
+                    log.info(f"Done with tile {tile}")
 
 
 class MultiProcessor:
