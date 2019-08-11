@@ -1,29 +1,21 @@
 # -*- coding: utf-8 -*-
 
-"""Processors run Executors in parallel.
-Processors are responsible for launching and monitoring the Executors and orchestrating the parallel processing logic.
+"""Processors run Executors in parallel. Processors are responsible for
+launching and monitoring the Executors and orchestrating the parallel
+processing logic.
 """
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List
 
-# -------------------
-# Test logging setup
+
 log = logging.getLogger(__name__)
-# log.setLevel(logging.DEBUG)
-# # create console handler and set level to debug
-# ch = logging.StreamHandler()
-# ch.setLevel(logging.DEBUG)
-# # create formatter
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# # add formatter to ch
-# ch.setFormatter(formatter)
-# # add ch to log
-# log.addHandler(ch)
-# -------------------
 
 
 class ParallelProcessorFactory:
-    """Registers and intantiates a ParallelProcessor that launches the Executors."""
+    """Registers and intantiates a ParallelProcessor that launches the
+    Executors."""
+
     def __init__(self):
         self._processors = {}
 
@@ -31,7 +23,8 @@ class ParallelProcessorFactory:
         """Register an processor for use.
 
         :param key: Name of the processor
-        :param processor: Can be a function, a class, or an object that implements .__call__()
+        :param processor: Can be a function, a class, or an object that
+            implements .__call__()
         """
         self._processors[key] = processor
 
@@ -45,20 +38,32 @@ class ParallelProcessorFactory:
 
 class ThreadProcessor:
     """For multithreaded processing."""
-    def process(self, threads, monitor_log, monitor_interval, tiles, worker, **worker_kwargs):
-        """Runs the workers asynchronously, using a `ThreadPoolExecutor <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_.
+
+    def process(self, threads:int, monitor_log:logging.Logger,
+                monitor_interval:int, tiles:List[str], worker,
+                **worker_kwargs):
+        """Runs the workers asynchronously, using a `ThreadPoolExecutor
+        <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_.
+
         Yields the results from the worker.
 
+        :param monitor_log:
         :param threads: The max. number of workers to call
         :param tiles: The set of tiles that are processed by the workers
-        :param worker: A callable worker, created by :meth:`~.worker.WorkerFactory.create`. For example in case of :class:`~.worker.ThreedfierWorker` you need to pass the :meth:`~.worker.ThreedfierWorker.execute` callable, and the the class instance.
+        :param worker: A callable worker, created by
+            :meth:`~.worker.WorkerFactory.create`. For example in case of
+            :class:`~.worker.ThreedfierWorker` you need to pass the
+            :meth:`~.worker.ThreedfierWorker.execute` callable, and the
+            class instance.
         :param worker_kwargs: Arguments passed to the worker
         """
         log.debug(f"Running {self.__class__.__name__}")
         log.debug(f"threads: {threads}")
         with ThreadPoolExecutor(max_workers=threads) as executor:
             # TODO: solve where to pass the tile_id to the worker, because it shouldnt be a hack here below
-            future_to_tile = {executor.submit(worker, monitor_log, monitor_interval, tile, **worker_kwargs): tile for tile in tiles}
+            future_to_tile = {
+                executor.submit(worker, monitor_log, monitor_interval, tile,
+                                **worker_kwargs): tile for tile in tiles}
             for future in as_completed(future_to_tile):
                 tile = future_to_tile[future]
                 try:
@@ -72,6 +77,7 @@ class ThreadProcessor:
 
 class MultiProcessor:
     """For multiprocessing"""
+
     def process(self):
         raise NotImplementedError(self.__class__.__name__)
 

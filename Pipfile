@@ -14,6 +14,7 @@ pytest = "==3.8.2"
 pytest-runner = "==4.2"
 Sphinx = "==1.8.1"
 tile_processor = {editable = true,path = "."}
+sphinx-autodoc-typehints = "*"
 
 [packages]
 Click = ">=6.0"

@@ -1,52 +1,34 @@
 # -*- coding: utf-8 -*-
 
-"""Workers run the executables. Executables can be anything, but most likely they are compiled software that are called
-in a subprocess, for example *3dfier* (threedfier).
-In order to implement your own Worker, implement your class/function here
-and register it in the click command.
-The Factory-pattern reference: `https://realpython.com/factory-method-python/ <https://realpython.com/factory-method-python/>`_
+"""Workers run the executables. Executables can be anything, but most likely
+they are compiled software that are called in a subprocess, for example
+*3dfier* (threedfier). In order to implement your own Worker, implement your
+class/function here and register it in the click command.
+The Factory-pattern reference: `https://realpython.com/factory-method-python/
+<https://realpython.com/factory-method-python/>`_
 """
 
-from os import getcwd
+import logging
 import os.path as path
-from psutil import Popen, Process, NoSuchProcess, ZombieProcess, AccessDenied, swap_memory, virtual_memory
+from locale import getpreferredencoding
+from os import getcwd
 from subprocess import PIPE
 from time import sleep
-from locale import getpreferredencoding
-import logging
+from typing import List
 
-# -------------------
-# Test logging setup
+from psutil import Popen
+
+
 log = logging.getLogger(__name__)
-# log.setLevel(logging.DEBUG)
-# # create console handler and set level to debug
-# ch = logging.StreamHandler()
-# ch.setLevel(logging.DEBUG)
-# # create formatter
-# formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-# # add formatter to ch
-# ch.setFormatter(formatter)
-# # add ch to log
-# log.addHandler(ch)
-# -------------------
-# log_res = logging.getLogger('subprocess')
-# log_res.setLevel(logging.DEBUG)
-# # create console handler and set level to debug
-# ch_perf = logging.FileHandler('performance.tsv')
-# ch_perf.setLevel(logging.DEBUG)
-# # create formatter
-# formatter_perf = logging.Formatter('%(asctime)s %(message)s', "%Y-%m-%d %H:%M:%S")
-# # add formatter to ch
-# ch_perf.setFormatter(formatter_perf)
-# # add ch to logger
-# log_res.addHandler(ch_perf)
-# -------------------
 
 
 class WorkerFactory:
     """Registers and instantiates an Worker.
-    A Worker is responsible for running an executable, e.g. 3dfier in case of :py:class:`.ThreedfierWorker`
+
+    A Worker is responsible for running an executable, e.g. 3dfier in case of
+    :py:class:`.ThreedfierWorker`
     """
+
     def __init__(self):
         self._executors = {}
 
@@ -54,7 +36,8 @@ class WorkerFactory:
         """Register a worker for use.
 
         :param key: Name of the worker
-        :param worker: Can be a function, a class, or an object that implements `.__call__()`
+        :param worker: Can be a function, a class, or an object that implements
+            `.__call__()`
         """
         self._executors[key] = worker
 
@@ -66,36 +49,46 @@ class WorkerFactory:
         return worker(**kwargs)
 
 
-class ThreedfierWorker:
-    """Runs 3dfier"""
-    def __init__(self):
-        self.name = '3dfier'
+class TemplateWorker:
+    """Runs the template"""
 
-    def execute(self, monitor, monitor_interval, tile_id, cfg_3dfier=None, **ignore):
-        """Execute 3dfier with the provided configuration"""
-        log.debug(f"Running {self.name}")
+    # def __init__(self):
+    #     self.name = 'template'
+
+    def execute(self, monitor, monitor_interval, tile_id, config=None,
+                **ignore):
+        """Execute the TemplateWorker with the provided configuration.
+
+        The worker will execute the `./src/simlate_memory_use.sh` script, which
+        allocates a constant amount of RAM (~600Mb) and 'holds' it for 10s.
+        """
+        log.debug(f"Running {__name__}")
         package_dir = getcwd()
         exe = path.join(package_dir, 'src', 'simulate_memory_use.sh')
         command = ['bash', exe, '10s']
-        res = run_subprocess(command, monitor_log=monitor, monitor_interval=monitor_interval, tile_id=tile_id)
-        return cfg_3dfier
+        res = run_subprocess(command, monitor_log=monitor,
+                             monitor_interval=monitor_interval, tile_id=tile_id)
+        return res
 
 
-class LoD10Worker:
-    """Runs the LoD1.0 building reconstruction"""
-    def __init__(self):
-        self.name = 'LoD1.0'
-        self.lod = '1.0'
 
-    def execute(self, cfg_lod10, **ignore):
-        log.debug(f"Running {self.name} in level-of-detail {self.lod}")
-        log.debug(cfg_lod10)
-
-
-def run_subprocess(command, shell=False, doexec=True, monitor_log=None, monitor_interval=5, tile_id=None):
-    """Runs a subprocess with `psutil` and monitors its status
+def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
+                   monitor_log: logging.Logger = None,
+                   monitor_interval: int = 5, tile_id: str = None) -> bool:
+    """Runs a subprocess with `psutil.Popen` and monitors its status.
 
     If subprocess returns non-zero exit code, STDERR is sent to the log.
+
+    :param command: The command to execute.
+    :param shell: Passed to `psutil.Popen`. Defaults to False.
+    :param doexec: Do execute the subprocess or just print out the concatenated
+        command. Used for testing.
+    :param monitor_log: A resource logger, which is returned by
+        :func:`~.recorder.configure_resource_logging`.
+    :param monitor_interval: How often query the resource usage of the process?
+        In seconds.
+    :param tile_id: Used for monitoring only.
+    :return: True on success
     """
     if doexec:
         cmd = " ".join(command)
@@ -114,7 +107,8 @@ def run_subprocess(command, shell=False, doexec=True, monitor_log=None, monitor_
         err = stderr.decode(getpreferredencoding(do_setlocale=True))
         popen.wait()
         if popen.returncode != 0:
-            log.debug("Process returned with non-zero exit code: %s", popen.returncode)
+            log.debug("Process returned with non-zero exit code: %s",
+                      popen.returncode)
             log.error(err)
             return False
         else:
