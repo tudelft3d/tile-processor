@@ -1,0 +1,21 @@
+name: For testing
+type: map
+mapping:
+  database:
+    desc: Database connection parameters
+    type: map
+    mapping:
+      dbname:
+        type: str
+        required: True
+      host:
+        type: str
+        required: True
+      port:
+        type: int
+        required: True
+      user:
+        type: str
+        required: True
+      pw:
+        type: str

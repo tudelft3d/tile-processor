@@ -52,8 +52,8 @@ class WorkerFactory:
 class TemplateWorker:
     """Runs the template"""
 
-    # def __init__(self):
-    #     self.name = 'template'
+    def __init__(self):
+        self.name = 'template'
 
     def execute(self, monitor, monitor_interval, tile_id, config=None,
                 **ignore):
@@ -62,12 +62,13 @@ class TemplateWorker:
         The worker will execute the `./src/simlate_memory_use.sh` script, which
         allocates a constant amount of RAM (~600Mb) and 'holds' it for 10s.
         """
-        log.debug(f"Running {__name__}")
+        log.debug(f"Running {self.__name__}")
         package_dir = getcwd()
         exe = path.join(package_dir, 'src', 'simulate_memory_use.sh')
         command = ['bash', exe, '10s']
         res = run_subprocess(command, monitor_log=monitor,
                              monitor_interval=monitor_interval, tile_id=tile_id)
+        # TODO: need to return the failed tile
         return res
 
 
@@ -88,7 +89,7 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
     :param monitor_interval: How often query the resource usage of the process?
         In seconds.
     :param tile_id: Used for monitoring only.
-    :return: True on success
+    :return: True/False on success/failure
     """
     if doexec:
         cmd = " ".join(command)
@@ -116,3 +117,7 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
     else:
         log.debug("Not executing %s", command)
         return True
+
+
+factory = WorkerFactory()
+factory.register_worker('template', TemplateWorker)

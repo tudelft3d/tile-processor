@@ -73,6 +73,7 @@ class ThreadProcessor:
                     log.exception(f"Tile {tile} raised an exception: {e}")
                 else:
                     log.info(f"Done with tile {tile}")
+        # TODO: need to store or return failed and successful tiles so the Controller can restart them
 
 
 class MultiProcessor:

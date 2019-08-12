@@ -7,15 +7,16 @@ import logging
 import click
 
 from tile_processor import processor
-from tile_processor.worker import WorkerFactory, TemplateWorker
+from tile_processor import worker
 from tile_processor import recorder
+from tile_processor import controller
 
 # The config dictionary contains all the values required to initialize each of the services.
 config = {
     'cfg_3dfier': 'config for 3dfier',
     'cfg_lod10': 'config for the LoD1.0 reconstruction'
 }
-exe_factory = WorkerFactory()
+
 
 
 @click.group()
@@ -72,8 +73,7 @@ def run_template(ctx, configuration, threads):
     controls the batch processing.
     """
     tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
-    exe_factory.register_worker('template', TemplateWorker)
-    template = exe_factory.create('template')
+    template = worker.factory.create('template')
     threadprocessor = processor.factory.create('threadprocessor')
     log = ctx.obj['log']
     log.debug(f"threads: {threads}")
@@ -85,6 +85,42 @@ def run_template(ctx, configuration, threads):
                                      **config)
     click.echo(list(result))
     return 0
+
+
+@click.command()
+@click.argument('configuration', type=click.File('r'))
+def run_3dfier(configuration):
+    threedfier_controller = controller.ControlThreedfier()
+    threedfier_controller.configure(configuration)
+
+@click.command()
+@click.argument('name', type=str)
+@click.argument('path', type=click.Path(exists=True))
+def register_schema(name, path):
+    """Registers a schema for parsing configuration files.
+
+    Having a schema is especially useful in case of complex configuration files,
+    so the configuration is validated before starting the processing. The
+    schema (as well as the configuration) must be YAML.
+    """
+    schema = controller.ConfigurationSchema()
+    schema.register(name, path)
+
+
+@click.command()
+def list_schemas():
+    """Lists the registered configuration schemas."""
+    schema = controller.ConfigurationSchema()
+    click.echo("Registered schemas:")
+    click.echo(schema.db)
+
+
+@click.command()
+@click.argument('name', type=str)
+def remove_schema(name):
+    """Removes a configuration schema from the database"""
+    schema = controller.ConfigurationSchema()
+    schema.remove(name)
 
 
 @click.command()
@@ -105,6 +141,10 @@ def plot_monitor_log(logfile):
 
 
 main.add_command(run_template)
+main.add_command(run_3dfier)
+main.add_command(register_schema)
+main.add_command(list_schemas)
+main.add_command(remove_schema)
 main.add_command(plot_monitor_log)
 
 if __name__ == "__main__":
