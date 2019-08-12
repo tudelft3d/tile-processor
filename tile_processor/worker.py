@@ -12,12 +12,12 @@ import logging
 import os.path as path
 from locale import getpreferredencoding
 from os import getcwd
+from pprint import pformat
 from subprocess import PIPE
 from time import sleep
 from typing import List
 
 from psutil import Popen
-
 
 log = logging.getLogger(__name__)
 
@@ -52,25 +52,21 @@ class WorkerFactory:
 class TemplateWorker:
     """Runs the template"""
 
-    def __init__(self):
-        self.name = 'template'
-
-    def execute(self, monitor, monitor_interval, tile_id, config=None,
-                **ignore):
+    def execute(self, monitor_log, monitor_interval, tile, **ignore):
         """Execute the TemplateWorker with the provided configuration.
 
         The worker will execute the `./src/simlate_memory_use.sh` script, which
         allocates a constant amount of RAM (~600Mb) and 'holds' it for 10s.
         """
-        log.debug(f"Running {self.__name__}")
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        log.debug(pformat(ignore))
         package_dir = getcwd()
         exe = path.join(package_dir, 'src', 'simulate_memory_use.sh')
         command = ['bash', exe, '10s']
-        res = run_subprocess(command, monitor_log=monitor,
-                             monitor_interval=monitor_interval, tile_id=tile_id)
+        res = run_subprocess(command, monitor_log=monitor_log,
+                             monitor_interval=monitor_interval, tile_id=tile)
         # TODO: need to return the failed tile
         return res
-
 
 
 def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
@@ -100,7 +96,8 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
         if monitor_log is not None:
             while True:
                 sleep(monitor_interval)
-                monitor_log.info(f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}\t{popen.cpu_times().system}\t{popen.memory_info().rss}")
+                monitor_log.info(
+                    f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}\t{popen.cpu_times().system}\t{popen.memory_info().rss}")
                 return_code = popen.poll()
                 if return_code is not None:
                     break

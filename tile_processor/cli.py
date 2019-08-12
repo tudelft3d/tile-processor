@@ -6,17 +6,8 @@ import logging
 
 import click
 
-from tile_processor import processor
-from tile_processor import worker
 from tile_processor import recorder
 from tile_processor import controller
-
-# The config dictionary contains all the values required to initialize each of the services.
-config = {
-    'cfg_3dfier': 'config for 3dfier',
-    'cfg_lod10': 'config for the LoD1.0 reconstruction'
-}
-
 
 
 @click.group()
@@ -55,12 +46,11 @@ def main(ctx, verbose, quiet, monitor):
 
 
 @click.command()
-@click.argument('configuration', type=click.File('r'))
 @click.option('--threads', type=int, default=3,
               help="Max. number of worker instances to start, "
                    "each on a separate thread")
 @click.pass_context
-def run_template(ctx, configuration, threads):
+def run_template(ctx, threads):
     """Run a template process on a batch of tiles in parallel.
 
     This command (incl. function calls within) is meant as template for
@@ -72,18 +62,27 @@ def run_template(ctx, configuration, threads):
     The 'configuration' argument is the path to the YAML configuration file that
     controls the batch processing.
     """
-    tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
-    template = worker.factory.create('template')
-    thread_processor = processor.factory.create('threadprocessor')
+    # This is how can you log from the cli commands in case you dont want to
+    # use click.echo()
     log = ctx.obj['log']
-    log.debug(f"threads: {threads}")
-    result = thread_processor.process(threads=threads,
-                                     monitor_log=ctx.obj['monitor_log'],
-                                     monitor_interval=ctx.obj['monitor_interval'],
-                                     worker=template.execute,
-                                     tiles=tiles,
-                                     **config)
-    click.echo(list(result))
+    log.debug(f"Threads: {threads}")
+    # Dummy data
+    tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
+    configuration = {
+        'cfg_3dfier': "config for 3dfier",
+        'cfg_lod10': "config for the LoD1.0 reconstruction"
+    }
+    #
+    template_controller = controller.factory.create('template')
+    template_controller.configure(
+        threads=threads,
+        monitor_log=ctx.obj['monitor_log'],
+        monitor_interval=ctx.obj['monitor_interval'],
+        tiles=tiles,
+        processor_key='threadprocessor',
+        configuration=configuration
+    )
+    template_controller.run()
     return 0
 
 
@@ -92,13 +91,16 @@ def run_template(ctx, configuration, threads):
 @click.option('--threads', type=int, default=3,
               help="Max. number of worker instances to start, "
                    "each on a separate thread")
-def run_3dfier(configuration, threads):
+@click.pass_context
+def run_3dfier(ctx, configuration, threads):
     """Run 3dfier"""
-    thread_processor = processor.factory.create('threadprocessor')
     threedfier_controller = controller.factory.create('threedfier',
         configuration=configuration,
-        threads=threads
+        threads=threads,
+        monitor_log=ctx.obj['monitor_log'],
+        monitor_interval=ctx.obj['monitor_interval'],
     )
+    threedfier_controller.configure(processor_key='threadprocessor')
     threedfier_controller.run()
 
 

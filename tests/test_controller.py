@@ -36,3 +36,24 @@ class TestConfgurationSchema:
         assert 'test' not in schema.db
         files = os.listdir(schema.dir)
         assert 'test_config_schema.yml' not in files
+
+
+class TestTemplate:
+    def test_for_debug(self):
+        threads = 3
+        tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
+        configuration = {
+            'cfg_3dfier': "config for 3dfier",
+            'cfg_lod10': "config for the LoD1.0 reconstruction"
+        }
+        #
+        template_controller = controller.factory.create('template')
+        template_controller.configure(
+            threads=threads,
+            monitor_log=None,
+            monitor_interval=5,
+            tiles=tiles,
+            processor_key='threadprocessor',
+            configuration=configuration
+        )
+        template_controller.run()

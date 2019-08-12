@@ -19,6 +19,8 @@ import pykwalify.errors
 import yaml
 from click import echo, secho, exceptions
 
+from tile_processor import processor, worker
+
 log = logging.getLogger(__name__)
 logging.getLogger("pykwalify").setLevel(logging.WARNING)
 
@@ -152,16 +154,64 @@ class ControllerFactory:
         return controller(**kwargs)
 
 
+class TemplateController:
+
+    def __init__(self):
+        self.cfg = {}
+        self.processors = {}
+
+    def configure(self,
+                  threads,
+                  monitor_log,
+                  monitor_interval,
+                  tiles,
+                  processor_key,
+                  configuration):
+        template_worker = worker.factory.create('template')
+        self.cfg = {
+            'threads': threads,
+            'monitor_log': monitor_log,
+            'monitor_interval': monitor_interval,
+            'worker': template_worker.execute,
+            'tiles': tiles,
+            'config': configuration
+        }
+        for part in ['part_A', 'part_B']:
+            self.processors[
+                processor.factory.create(processor_key, name=part)] = part
+        log.info(f"Configured {self.__class__.__name__}")
+
+    def run(self):
+        log.info(f"Running {self.__class__.__name__}")
+        for proc in self.processors:
+            proc.configure(**self.cfg)
+            result = proc.process()
+            log.info(list(result))
+
+
 class ThreedfierController:
     """Controller for 3dfier"""
 
-    def __init__(self, configuration, threads):
+    def __init__(self,
+                 configuration: TextIO,
+                 threads: int,
+                 monitor_log: logging.Logger,
+                 monitor_interval: int):
         self.schema = ConfigurationSchema('threedfier')
-        self.cfg = self.parse_configuration(configuration, threads)
+        self.cfg = self.parse_configuration(
+            configuration, threads, monitor_log, monitor_interval
+        )
+        self.processors = {}
 
-    def parse_configuration(self, config: TextIO, threads: int):
+    def parse_configuration(self,
+                            config: TextIO,
+                            threads: int,
+                            monitor_log: logging.Logger,
+                            monitor_interval: int) -> dict:
         """Parse, validate and prepare the configuration file.
 
+        :param monitor_log:
+        :param monitor_interval:
         :param config: A text stream, containing the configuration
         :param threads: Number of threads
         :return: Configuration
@@ -198,6 +248,8 @@ class ThreedfierController:
             "bag3d_cfg_border_ahn3.yml"
         )
         cfg['config']['threads'] = int(threads)
+        cfg['config']['monitor_log'] = monitor_log
+        cfg['config']['monitor_interval'] = monitor_interval
 
         # -- Get config file parameters
         # database connection
@@ -259,15 +311,20 @@ class ThreedfierController:
 
         return cfg
 
-    def configure(self):
+    def configure(self, processor_key: str):
         """Configure the control logic."""
-
+        # Configure the tiles
+        # Configure the borders of the different AHN versions
+        tiles = ['1', '2', '3', '4']
+        for t in tiles:
+            self.processors[t] = processor.factory.create(processor_key, name=t)
 
     def run(self):
         """Run the processors"""
-        # Configure the tiles
-        # Configure the borders of the different AHN versions
         # Run the configured processors
+        for key, proc in self.processors.items():
+            # processor.process()
+            log.debug(f"Running processor {proc.name}")
         pass
 
 
@@ -286,5 +343,7 @@ def add_abspath(dirs: List):
     else:
         return os.path.abspath(dirs)
 
+
 factory = ControllerFactory()
+factory.register_controller('template', TemplateController)
 factory.register_controller('threedfier', ThreedfierController)

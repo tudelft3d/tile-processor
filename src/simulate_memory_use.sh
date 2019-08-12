@@ -11,7 +11,7 @@ echo "   'h' for hours, or 'd' for days."
 delay=$1
 
 echo "begin allocating memory..."
-for index in $(seq 1000); do
+for index in $(seq 500); do
     value=$(seq -w -s '' $index $(($index + 100000)))
     eval array$index=$value
 done

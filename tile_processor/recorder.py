@@ -4,9 +4,9 @@
 
 import logging
 import sys
+from datetime import datetime
 
 from click import echo
-from datetime import datetime
 
 MODULE_PANDAS_AVAILABLE = True
 MODULE_MATPLOTLIB_AVAILABLE = True
@@ -20,7 +20,6 @@ try:
 except ImportError as e:
     MODULE_MATPLOTLIB_AVAILABLE = False
 
-
 log = logging.getLogger(__name__)
 
 
@@ -30,7 +29,7 @@ def configure_logging(verbosity):
     logging.basicConfig(
         stream=sys.stdout,
         level=log_level,
-        format='[%(levelname)-8s] %(asctime)s %(module)s.%(funcName)s:%(lineno)s --- %(message)s',
+        format='[%(levelname)-8s] %(asctime)s\t%(module)s.%(funcName)s:%(lineno)s --- %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
@@ -58,7 +57,7 @@ def configure_ressource_logging() -> logging.Logger:
     return log_res
 
 
-def parse_log(logfile:str) -> pandas.DataFrame:
+def parse_log(logfile: str) -> pandas.DataFrame:
     """Reads a TSV log into a pandas dataframe
 
     :param logfile: Path to the logfile
@@ -81,7 +80,7 @@ def parse_log(logfile:str) -> pandas.DataFrame:
     return log
 
 
-def save_mem_plot(log:pandas.DataFrame, file:str):
+def save_mem_plot(log: pandas.DataFrame, file: str):
     """Plot the memory usage per tile and save it as a pdf
 
     :param log: DataFrame from :func:`.parse_log`
@@ -96,7 +95,7 @@ def save_mem_plot(log:pandas.DataFrame, file:str):
     plt.close(fig)
 
 
-def save_cpu_log(log:pandas.DataFrame, file:str):
+def save_cpu_log(log: pandas.DataFrame, file: str):
     """Plot the CPU time per tile and save it as a pdf
 
     :param log: DataFrame from :func:`.parse_log`

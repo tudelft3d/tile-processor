@@ -8,7 +8,6 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
 
-
 log = logging.getLogger(__name__)
 
 
@@ -39,15 +38,25 @@ class ParallelProcessorFactory:
 class ThreadProcessor:
     """For multithreaded processing."""
 
-    def process(self, threads:int, monitor_log:logging.Logger,
-                monitor_interval:int, tiles:List[str], worker,
-                **worker_kwargs):
-        """Runs the workers asynchronously, using a `ThreadPoolExecutor
-        <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_.
+    def __init__(self, name):
+        self.name = name
+        self.worker_cfg = None
+        self.cfg = None
+        self.tiles = None
+        self.worker = None
 
-        Yields the results from the worker.
+    def configure(self,
+                  threads: int,
+                  monitor_log: logging.Logger,
+                  monitor_interval: int,
+                  tiles: List[str],
+                  worker,
+                  config: dict):
+        """Configure the Processor.
 
-        :param monitor_log:
+        :param monitor_interval: Monitoring interval in seconds
+        :param config: Worker configuration
+        :param monitor_log: Logger for resource monitoring
         :param threads: The max. number of workers to call
         :param tiles: The set of tiles that are processed by the workers
         :param worker: A callable worker, created by
@@ -55,15 +64,31 @@ class ThreadProcessor:
             :class:`~.worker.ThreedfierWorker` you need to pass the
             :meth:`~.worker.ThreedfierWorker.execute` callable, and the
             class instance.
-        :param worker_kwargs: Arguments passed to the worker
         """
-        log.debug(f"Running {self.__class__.__name__}")
-        log.debug(f"threads: {threads}")
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            # TODO: solve where to pass the tile_id to the worker, because it shouldnt be a hack here below
-            future_to_tile = {
-                executor.submit(worker, monitor_log, monitor_interval, tile,
-                                **worker_kwargs): tile for tile in tiles}
+        self.worker_cfg = config
+        self.cfg = {
+            'threads': threads,
+            'monitor_log': monitor_log,
+            'monitor_interval': monitor_interval
+        }
+        self.tiles = tiles
+        self.worker = worker
+        log.info(f"Configured {self.__class__.__name__}:{self.name}")
+        # log.debug(pformat(vars(self)))
+
+    def process(self):
+        """Runs the workers asynchronously, using a `ThreadPoolExecutor
+        <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_.
+
+        Yields the results from the worker.
+        """
+        log.info(f"Running {self.__class__.__name__}:{self.name}")
+        with ThreadPoolExecutor(max_workers=self.cfg['threads']) as executor:
+            future_to_tile = {}
+            for tile in self.tiles:
+                self.worker_cfg['tile'] = tile
+                future_to_tile[executor.submit(
+                    self.worker, **self.cfg, **self.worker_cfg)] = tile
             for future in as_completed(future_to_tile):
                 tile = future_to_tile[future]
                 try:
