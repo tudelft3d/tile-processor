@@ -89,9 +89,16 @@ def run_template(ctx, configuration, threads):
 
 @click.command()
 @click.argument('configuration', type=click.File('r'))
-def run_3dfier(configuration):
-    threedfier_controller = controller.ControlThreedfier()
-    threedfier_controller.configure(configuration)
+@click.option('--threads', type=int, default=3,
+              help="Max. number of worker instances to start, "
+                   "each on a separate thread")
+def run_3dfier(configuration, threads):
+    """Run 3dfier"""
+    threedfier_controller = controller.ControlThreedfier(
+        configuration,
+        threads
+    )
+
 
 @click.command()
 @click.argument('name', type=str)

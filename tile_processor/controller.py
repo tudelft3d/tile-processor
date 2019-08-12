@@ -8,28 +8,33 @@ finish as quickly as possible. Then probably won't be enough resource left
 to run a second Processor in parallel. This is where a Controller comes in,
 which can control the execution of the Processors."""
 
-import os
-import logging
 import json
-from shutil import copyfile
+import logging
+import os
+from shutil import copyfile, rmtree
+from typing import TextIO, List
 
-import yaml
 import pykwalify.core
 import pykwalify.errors
-from click import echo, secho
-from click import exceptions
+import yaml
+from click import echo, secho, exceptions
 
 log = logging.getLogger(__name__)
 logging.getLogger("pykwalify").setLevel(logging.WARNING)
 
 
 class ConfigurationSchema:
-    """Schema for validating a configuration file."""
+    """Schema for validating a configuration file.
+
+    For registering and removing configuration schemas,
+    see the `register-schema` and `remove-schema` commands.
+    """
 
     def __init__(self, name=None):
         self.name = name
         self.dir = os.path.join(os.path.dirname(__file__), 'schemas')
-        self.db_path = os.path.join(os.path.dirname(__file__), 'schemas', 'schemas.json')
+        self.db_path = os.path.join(os.path.dirname(__file__), 'schemas',
+                                    'schemas.json')
         self.db = self.fetch()
         self.schema = self.fetch(self.name) if self.name else None
 
@@ -88,16 +93,19 @@ class ConfigurationSchema:
             with open(self.db_path, 'w') as fp:
                 json.dump(self.db, fp)
         except KeyError:
-            secho(f"Schema '{name}' is not in the database, not removing anything",
-                  fg='yellow')
+            secho(
+                f"Schema '{name}' not in the database, not removing anything",
+                fg='yellow')
             return
         try:
             p = os.path.join(self.dir, fname)
             os.remove(p)
             echo(f"Removed the configuration schema '{name}'")
         except FileNotFoundError:
-            secho(f"Schema file '{fname}' is not in {self.dir}, not removing anything",
-                  fg='yellow')
+            secho(
+                f"Schema file '{fname}' is not in {self.dir}, "
+                f"not removing anything",
+                fg='yellow')
             return
 
     def validate_configuration(self, config):
@@ -124,90 +132,121 @@ class ConfigurationSchema:
 class ControlThreedfier:
     """Controller for 3dfier"""
 
-    def __init__(self):
+    def __init__(self, configuration, threads):
         self.schema = ConfigurationSchema('threedfier')
+        self.cfg = self.configure(configuration, threads)
 
-    def configure(self, config):
+    def configure(self, config: TextIO, threads: int) -> dict:
+        """Parse, validate and prepare the configuration file.
+
+        :param config: A text stream, containing the configuration
+        :param threads: Number of threads
+        :return: Configuration
+        """
         cfg = {}
-
-        # -- Get command line parameters, configure temporary files, validate config file
         try:
             cfg_stream = self.schema.validate_configuration(config)
-            log.info("Configuration file is valid")
-        except:
+            log.info(f"Configuration file {config.name} is valid")
+        except Exception as e:
+            log.exception(e)
             raise
-        #
-        #
-        # cfg['config'] = {}
-        # cfg['config']['in'] = args_in['cfg_file']
-        # rootdir = os.path.dirname(args_in['cfg_file'])
-        # rest_dir = os.path.join(rootdir, "cfg_rest")
-        # ahn2_dir = os.path.join(rootdir, "cfg_ahn2")
-        # ahn3_dir = os.path.join(rootdir, "cfg_ahn3")
-        # for d in [rest_dir, ahn2_dir, ahn3_dir]:
-        #     if os.path.isdir(d):
-        #         rmtree(d, ignore_errors=True, onerror=None)
-        #     try:
-        #         os.makedirs(d, exist_ok=False)
-        #         logger.debug("Created %s", d)
-        #     except Exception as e:
-        #         logger.error(e)
-        # cfg['config']['out_rest'] = os.path.join(rest_dir, "bag3d_cfg_rest.yml")
-        # cfg['config']['out_border_ahn2'] = os.path.join(ahn2_dir, "bag3d_cfg_border_ahn2.yml")
-        # cfg['config']['out_border_ahn3'] = os.path.join(ahn3_dir, "bag3d_cfg_border_ahn3.yml")
-        # cfg['config']['threads'] = int(args_in['threads'])
-        #
-        # #-- Get config file parameters
-        # # database connection
-        # cfg['database'] = cfg_stream['database']
-        #
-        # # 2D polygons
-        # cfg['input_polygons'] = cfg_stream['input_polygons']
-        # try:
-        #     # in case user gave " " or "" for 'extent'
-        #     if len(cfg_stream['input_polygons']['extent']) <= 1:
-        #         EXTENT_FILE = None
-        #         logger.debug('extent string has length <= 1')
-        #     cfg['input_polygons']['extent_file'] = os.path.abspath(
-        #         cfg_stream['input_polygons']['extent'])
-        #     cfg['input_polygons']['tile_list'] = None
-        # except (NameError, AttributeError, TypeError):
-        #     tile_list = cfg_stream['input_polygons']['tile_list']
-        #     assert isinstance(
-        #         tile_list, list), "Please provide input for tile_list as a list: [...]"
-        #     cfg['input_polygons']['tile_list'] = tile_list
-        #     cfg['input_polygons']['extent_file'] = None
-        # # 'user_schema' is used for the '_clip3dfy_' and '_union' views, thus
-        # # only use 'user_schema' if 'extent' is provided
-        # USER_SCHEMA = cfg_stream['input_polygons']['user_schema']
-        # if (USER_SCHEMA is None) or (EXTENT_FILE is None):
-        #     logger.debug("user_schema or extent is None")
-        #     cfg['input_polygons']['user_schema'] = cfg['input_polygons']['tile_schema']
-        #
-        # # AHN point cloud
-        # cfg['input_elevation'] = cfg_stream['input_elevation']
-        # cfg['input_elevation']['dataset_dir'] = add_abspath(
-        #     cfg_stream['input_elevation']['dataset_dir'])
-        #
-        # # quality checks
-        # if cfg_stream['quality']['ahn2_rast_dir']:
-        #     os.makedirs(cfg_stream['quality']['ahn2_rast_dir'], exist_ok=True)
-        # if cfg_stream['quality']['ahn3_rast_dir']:
-        #     os.makedirs(cfg_stream['quality']['ahn3_rast_dir'], exist_ok=True)
-        # cfg['quality'] = cfg_stream['quality']
-        #
-        # # partitioning of the 2D polygons
-        # cfg['tile_index'] = cfg_stream['tile_index']
-        #
-        # # output control
-        # cfg['output'] = cfg_stream['output']
-        # cfg['output']['staging']['dir'] = os.path.abspath(cfg_stream['output']['staging']['dir'])
-        # os.makedirs(cfg['output']['staging']['dir'], exist_ok=True)
-        # cfg['output']['production']['dir'] = os.path.abspath(cfg_stream['output']['production']['dir'])
-        # os.makedirs(cfg['output']['production']['dir'], exist_ok=True)
-        #
-        # # executables
-        # cfg['path_3dfier'] = cfg_stream['path_3dfier']
-        # cfg['path_lasinfo'] = cfg_stream['path_lasinfo']
-        #
-        # return cfg
+
+        cfg['config'] = {}
+        cfg['config']['in'] = config.name
+        rootdir = os.path.dirname(config.name)
+        rest_dir = os.path.join(rootdir, "cfg_rest")
+        ahn2_dir = os.path.join(rootdir, "cfg_ahn2")
+        ahn3_dir = os.path.join(rootdir, "cfg_ahn3")
+        for d in [rest_dir, ahn2_dir, ahn3_dir]:
+            if os.path.isdir(d):
+                rmtree(d, ignore_errors=True, onerror=None)
+            try:
+                os.makedirs(d, exist_ok=False)
+                log.debug("Created %s", d)
+            except Exception as e:
+                log.exception(e)
+        cfg['config']['out_rest'] = os.path.join(rest_dir, "bag3d_cfg_rest.yml")
+        cfg['config']['out_border_ahn2'] = os.path.join(
+            ahn2_dir,
+            "bag3d_cfg_border_ahn2.yml"
+        )
+        cfg['config']['out_border_ahn3'] = os.path.join(
+            ahn3_dir,
+            "bag3d_cfg_border_ahn3.yml"
+        )
+        cfg['config']['threads'] = int(threads)
+
+        # -- Get config file parameters
+        # database connection
+        cfg['database'] = cfg_stream['database']
+
+        # 2D polygons
+        cfg['input_polygons'] = cfg_stream['input_polygons']
+        try:
+            # in case user gave " " or "" for 'extent'
+            if len(cfg_stream['input_polygons']['extent']) <= 1:
+                extent_file = None
+                log.debug('extent string has length <= 1')
+            cfg['input_polygons']['extent_file'] = os.path.abspath(
+                cfg_stream['input_polygons']['extent'])
+            cfg['input_polygons']['tile_list'] = None
+        except (NameError, AttributeError, TypeError):
+            tile_list = cfg_stream['input_polygons']['tile_list']
+            assert isinstance(
+                tile_list,
+                list), "Please provide input for tile_list as a list: [...]"
+            cfg['input_polygons']['tile_list'] = tile_list
+            cfg['input_polygons']['extent_file'] = None
+        # 'user_schema' is used for the '_clip3dfy_' and '_union' views, thus
+        # only use 'user_schema' if 'extent' is provided
+        user_schema = cfg_stream['input_polygons']['user_schema']
+        if (user_schema is None) or (extent_file is None):
+            log.debug("user_schema or extent is None")
+            cfg['input_polygons']['user_schema'] = cfg['input_polygons'][
+                'tile_schema']
+
+        # AHN point cloud
+        cfg['input_elevation'] = cfg_stream['input_elevation']
+        cfg['input_elevation']['dataset_dir'] = add_abspath(
+            cfg_stream['input_elevation']['dataset_dir'])
+
+        # quality checks
+        if cfg_stream['quality']['ahn2_rast_dir']:
+            os.makedirs(cfg_stream['quality']['ahn2_rast_dir'], exist_ok=True)
+        if cfg_stream['quality']['ahn3_rast_dir']:
+            os.makedirs(cfg_stream['quality']['ahn3_rast_dir'], exist_ok=True)
+        cfg['quality'] = cfg_stream['quality']
+
+        # partitioning of the 2D polygons
+        cfg['tile_index'] = cfg_stream['tile_index']
+
+        # output control
+        cfg['output'] = cfg_stream['output']
+        cfg['output']['staging']['dir'] = os.path.abspath(
+            cfg_stream['output']['staging']['dir'])
+        os.makedirs(cfg['output']['staging']['dir'], exist_ok=True)
+        cfg['output']['production']['dir'] = os.path.abspath(
+            cfg_stream['output']['production']['dir'])
+        os.makedirs(cfg['output']['production']['dir'], exist_ok=True)
+
+        # executables
+        cfg['path_3dfier'] = cfg_stream['path_3dfier']
+        cfg['path_lasinfo'] = cfg_stream['path_lasinfo']
+        log.info(f"Configured {self.__class__.__name__}")
+        return cfg
+
+
+def add_abspath(dirs: List):
+    """Recursively append the absolute path to the paths in a nested list
+
+    If not a list, returns the string with absolute path.
+    """
+    if isinstance(dirs, list):
+        for i, elem in enumerate(dirs):
+            if isinstance(elem, str):
+                dirs[i] = os.path.abspath(elem)
+            else:
+                dirs[i] = add_abspath(elem)
+        return dirs
+    else:
+        return os.path.abspath(dirs)
