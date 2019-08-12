@@ -13,7 +13,7 @@ log = logging.getLogger(__name__)
 
 
 class ParallelProcessorFactory:
-    """Registers and intantiates a ParallelProcessor that launches the
+    """Registers and instantiates a ParallelProcessor that launches the
     Executors."""
 
     def __init__(self):

@@ -129,14 +129,37 @@ class ConfigurationSchema:
             return cfg
 
 
-class ControlThreedfier:
+class ControllerFactory:
+    """Registers and instantiates a Controller that launches the Processors."""
+
+    def __init__(self):
+        self._controllers = {}
+
+    def register_controller(self, key, controller):
+        """Register an controller for use.
+
+        :param key: Name of the controller
+        :param controller: Can be a function, a class, or an object that
+            implements .__call__()
+        """
+        self._controllers[key] = controller
+
+    def create(self, key, **kwargs):
+        """Instantiate a Processor"""
+        controller = self._controllers.get(key)
+        if not controller:
+            raise ValueError(key)
+        return controller(**kwargs)
+
+
+class ThreedfierController:
     """Controller for 3dfier"""
 
     def __init__(self, configuration, threads):
         self.schema = ConfigurationSchema('threedfier')
-        self.cfg = self.configure(configuration, threads)
+        self.cfg = self.parse_configuration(configuration, threads)
 
-    def configure(self, config: TextIO, threads: int) -> dict:
+    def parse_configuration(self, config: TextIO, threads: int):
         """Parse, validate and prepare the configuration file.
 
         :param config: A text stream, containing the configuration
@@ -233,7 +256,19 @@ class ControlThreedfier:
         cfg['path_3dfier'] = cfg_stream['path_3dfier']
         cfg['path_lasinfo'] = cfg_stream['path_lasinfo']
         log.info(f"Configured {self.__class__.__name__}")
+
         return cfg
+
+    def configure(self):
+        """Configure the control logic."""
+
+
+    def run(self):
+        """Run the processors"""
+        # Configure the tiles
+        # Configure the borders of the different AHN versions
+        # Run the configured processors
+        pass
 
 
 def add_abspath(dirs: List):
@@ -250,3 +285,6 @@ def add_abspath(dirs: List):
         return dirs
     else:
         return os.path.abspath(dirs)
+
+factory = ControllerFactory()
+factory.register_controller('threedfier', ThreedfierController)

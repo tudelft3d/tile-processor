@@ -74,10 +74,10 @@ def run_template(ctx, configuration, threads):
     """
     tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
     template = worker.factory.create('template')
-    threadprocessor = processor.factory.create('threadprocessor')
+    thread_processor = processor.factory.create('threadprocessor')
     log = ctx.obj['log']
     log.debug(f"threads: {threads}")
-    result = threadprocessor.process(threads=threads,
+    result = thread_processor.process(threads=threads,
                                      monitor_log=ctx.obj['monitor_log'],
                                      monitor_interval=ctx.obj['monitor_interval'],
                                      worker=template.execute,
@@ -94,10 +94,12 @@ def run_template(ctx, configuration, threads):
                    "each on a separate thread")
 def run_3dfier(configuration, threads):
     """Run 3dfier"""
-    threedfier_controller = controller.ControlThreedfier(
-        configuration,
-        threads
+    thread_processor = processor.factory.create('threadprocessor')
+    threedfier_controller = controller.factory.create('threedfier',
+        configuration=configuration,
+        threads=threads
     )
+    threedfier_controller.run()
 
 
 @click.command()
