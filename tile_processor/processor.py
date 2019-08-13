@@ -76,13 +76,15 @@ class ThreadProcessor:
         log.info(f"Configured {self.__class__.__name__}:{self.name}")
         # log.debug(pformat(vars(self)))
 
-    def process(self, restart: int = 3):
+    def process(self, restart: int = 3) -> List[str]:
         """Runs the workers asynchronously, using a `ThreadPoolExecutor
         <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_
          and restarts the tiles that failed.
 
          :param restart: Nr. of restarts for failed tiles
+         :return: The IDs of the tiles that failed even after the restarts
         """
+        log.info(f"Running {self.__class__.__name__}:{self.name}")
         proc_result = self._process()
         failed_tiles = [tile for tile, result in proc_result
                         if result is False]
@@ -98,6 +100,9 @@ class ThreadProcessor:
                                 if result is False]
             else:
                 break
+        log.info(f"Done {self.__class__.__name__}:{self.name}. "
+                 f"Failed: {failed_tiles}")
+        return failed_tiles
 
     def _process(self):
         """Runs the workers asynchronously, using a `ThreadPoolExecutor
@@ -105,7 +110,6 @@ class ThreadProcessor:
 
         :return: Yields the results from the worker.
         """
-        log.info(f"Running {self.__class__.__name__}:{self.name}")
         with ThreadPoolExecutor(max_workers=self.cfg['threads']) as executor:
             future_to_tile = {}
             for tile in self.tiles:

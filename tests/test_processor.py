@@ -33,7 +33,8 @@ def generate_sample_processor():
 class TestThreadProcessor:
 
 
-    def test_processor_raise_exception(self, generate_sample_processor):
+    def test_processor_raise_exception(self, caplog, generate_sample_processor):
+        caplog.set_level(logging.DEBUG)
         def sample_worker(arg0, arg1=None, arg2=None):
             print(arg0, arg1, arg2)
             return True
@@ -42,7 +43,8 @@ class TestThreadProcessor:
         with pytest.raises(TypeError):
             result = {tile:r for tile,r in res}
 
-    def test_process(self, generate_sample_processor):
+    def test_process(self, caplog, generate_sample_processor):
+        caplog.set_level(logging.INFO)
         def sample_worker(arg1, arg2, **kwargs):
             print(f"arg1={arg1}, arg2={arg2}, kwargs={kwargs}")
             return True
@@ -52,6 +54,7 @@ class TestThreadProcessor:
         assert result == expectation
 
     def test_restart_processor(self, caplog, generate_sample_processor):
+        caplog.set_level(logging.INFO)
         def sample_worker(tile, **kwargs):
             """Simulate failing tiles"""
             if tile == 'tile_1' or tile == 'tile_2':

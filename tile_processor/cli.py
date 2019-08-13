@@ -72,7 +72,7 @@ def run_template(ctx, threads):
         'cfg_3dfier': "config for 3dfier",
         'cfg_lod10': "config for the LoD1.0 reconstruction"
     }
-    #
+    # Create a Controller and run it
     template_controller = controller.factory.create('template')
     template_controller.configure(
         threads=threads,
@@ -82,7 +82,7 @@ def run_template(ctx, threads):
         processor_key='threadprocessor',
         configuration=configuration
     )
-    template_controller.run()
+    results = template_controller.run()
     return 0
 
 

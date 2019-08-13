@@ -8,11 +8,9 @@ The Factory-pattern reference: `https://realpython.com/factory-method-python/
 <https://realpython.com/factory-method-python/>`_
 """
 
+import os
 import logging
-import os.path as path
 from locale import getpreferredencoding
-from os import getcwd
-from pprint import pformat
 from subprocess import PIPE
 from time import sleep
 from typing import List
@@ -61,9 +59,8 @@ class TemplateWorker:
         :return: True/False on success/failure
         """
         log.debug(f"Running {self.__class__.__name__}:{tile}")
-        log.debug(pformat(ignore))
-        package_dir = getcwd()
-        exe = path.join(package_dir, 'src', 'simulate_memory_use.sh')
+        package_dir = os.path.dirname(os.path.dirname(__file__))
+        exe = os.path.join(package_dir, 'src', 'simulate_memory_use.sh')
         command = ['bash', exe, '10s']
         res = run_subprocess(command, monitor_log=monitor_log,
                              monitor_interval=monitor_interval, tile_id=tile)

@@ -6,7 +6,7 @@
 import os
 
 import pytest
-import yaml
+import logging
 
 from tile_processor import controller
 
@@ -40,20 +40,20 @@ class TestConfgurationSchema:
 
 class TestTemplate:
     def test_for_debug(self):
-        threads = 3
         tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
         configuration = {
             'cfg_3dfier': "config for 3dfier",
             'cfg_lod10': "config for the LoD1.0 reconstruction"
         }
-        #
         template_controller = controller.factory.create('template')
         template_controller.configure(
-            threads=threads,
+            threads=3,
             monitor_log=None,
             monitor_interval=5,
             tiles=tiles,
             processor_key='threadprocessor',
             configuration=configuration
         )
-        template_controller.run()
+        results = template_controller.run()
+        for part, failed in results.items():
+            assert len(failed) == 0

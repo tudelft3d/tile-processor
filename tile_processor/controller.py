@@ -155,6 +155,7 @@ class ControllerFactory:
 
 
 class TemplateController:
+    """A sample implementation of a Controller."""
 
     def __init__(self):
         self.cfg = {}
@@ -167,6 +168,15 @@ class TemplateController:
                   tiles,
                   processor_key,
                   configuration):
+        """Configure the controller.
+
+        :param threads:
+        :param monitor_log:
+        :param monitor_interval:
+        :param tiles:
+        :param processor_key:
+        :param configuration:
+        """
         template_worker = worker.factory.create('template')
         self.cfg = {
             'threads': threads,
@@ -181,12 +191,21 @@ class TemplateController:
                 processor.factory.create(processor_key, name=part)] = part
         log.info(f"Configured {self.__class__.__name__}")
 
-    def run(self):
+    def run(self) -> dict:
+        """Run the Controller
+
+        :return: `(processor.name : [tile ID])`
+            Returns the tile IDs per Processor that failed even after
+            restarts
+        """
         log.info(f"Running {self.__class__.__name__}")
+        results = {}
         for proc in self.processors:
             proc.configure(**self.cfg)
-            result = proc.process()
-            log.info(list(result))
+            res = proc.process()
+            results[proc.name] = res
+        log.info(f"Done {self.__class__.__name__}. Failed: {results}")
+        return results
 
 
 class ThreedfierController:
