@@ -52,11 +52,13 @@ class WorkerFactory:
 class TemplateWorker:
     """Runs the template"""
 
-    def execute(self, monitor_log, monitor_interval, tile, **ignore):
+    def execute(self, monitor_log, monitor_interval, tile, **ignore) -> bool:
         """Execute the TemplateWorker with the provided configuration.
 
         The worker will execute the `./src/simlate_memory_use.sh` script, which
         allocates a constant amount of RAM (~600Mb) and 'holds' it for 10s.
+
+        :return: True/False on success/failure
         """
         log.debug(f"Running {self.__class__.__name__}:{tile}")
         log.debug(pformat(ignore))
@@ -65,7 +67,6 @@ class TemplateWorker:
         command = ['bash', exe, '10s']
         res = run_subprocess(command, monitor_log=monitor_log,
                              monitor_interval=monitor_interval, tile_id=tile)
-        # TODO: need to return the failed tile
         return res
 
 
@@ -97,7 +98,8 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
             while True:
                 sleep(monitor_interval)
                 monitor_log.info(
-                    f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}\t{popen.cpu_times().system}\t{popen.memory_info().rss}")
+                    f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}"
+                    f"\t{popen.cpu_times().system}\t{popen.memory_info().rss}")
                 return_code = popen.poll()
                 if return_code is not None:
                     break

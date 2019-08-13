@@ -38,7 +38,7 @@ class ParallelProcessorFactory:
 class ThreadProcessor:
     """For multithreaded processing."""
 
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
         self.worker_cfg = None
         self.cfg = None
@@ -76,11 +76,34 @@ class ThreadProcessor:
         log.info(f"Configured {self.__class__.__name__}:{self.name}")
         # log.debug(pformat(vars(self)))
 
-    def process(self):
+    def process(self, restart: int = 3):
+        """Runs the workers asynchronously, using a `ThreadPoolExecutor
+        <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_
+         and restarts the tiles that failed.
+
+         :param restart: Nr. of restarts for failed tiles
+        """
+        proc_result = self._process()
+        failed_tiles = [tile for tile, result in proc_result
+                        if result is False]
+        _restart = 0
+        while _restart < restart:
+            if failed_tiles is not None and len(failed_tiles) > 0:
+                _restart += 1
+                log.info(f"Restarting {self.__class__.__name__}:{self.name} "
+                         f"with {failed_tiles}")
+                self.tiles = failed_tiles
+                proc_result = self._process()
+                failed_tiles = [tile for tile, result in proc_result
+                                if result is False]
+            else:
+                break
+
+    def _process(self):
         """Runs the workers asynchronously, using a `ThreadPoolExecutor
         <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_.
 
-        Yields the results from the worker.
+        :return: Yields the results from the worker.
         """
         log.info(f"Running {self.__class__.__name__}:{self.name}")
         with ThreadPoolExecutor(max_workers=self.cfg['threads']) as executor:
@@ -93,12 +116,12 @@ class ThreadProcessor:
                 tile = future_to_tile[future]
                 try:
                     # yield the data that is created/returned by the worker
-                    yield future.result()
+                    yield tile, future.result()
                 except Exception as e:
                     log.exception(f"Tile {tile} raised an exception: {e}")
+                    raise
                 else:
                     log.info(f"Done with tile {tile}")
-        # TODO: need to store or return failed and successful tiles so the Controller can restart them
 
 
 class MultiProcessor:
