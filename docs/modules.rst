@@ -2,6 +2,12 @@
 Reference
 =========
 
+Controllers
+-----------
+
+.. automodule:: tile_processor.controller
+    :members:
+
 Processors
 ----------
 
