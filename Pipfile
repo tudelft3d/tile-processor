@@ -23,6 +23,8 @@ psutil = "*"
 pandas = "*"
 matplotlib = "*"
 pykwalify = "*"
+fiona = "*"
+shapely = "*"
 
 [requires]
 python_version = "3.6"

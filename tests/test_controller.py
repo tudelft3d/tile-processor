@@ -10,18 +10,6 @@ import logging
 
 from tile_processor import controller
 
-@pytest.fixture('module')
-def tests_dir():
-    yield os.path.abspath(os.path.dirname(__file__))
-
-@pytest.fixture('module')
-def root_dir():
-    yield os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
-
-@pytest.fixture('module')
-def package_dir(root_dir):
-    yield os.path.join(root_dir, 'tile_processor')
-
 
 class TestConfgurationSchema:
     def test_schema(self, tests_dir):
