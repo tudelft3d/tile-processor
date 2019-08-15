@@ -25,3 +25,9 @@ Recorder
 
 .. automodule:: tile_processor.recorder
     :members:
+
+Database access
+---------------
+
+.. automodule:: tile_processor.db
+    :members:

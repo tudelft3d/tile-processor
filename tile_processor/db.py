@@ -5,6 +5,8 @@
 import logging
 import re
 from typing import List, Tuple
+from collections import abc
+from keyword import iskeyword
 
 import psycopg2
 from psycopg2 import sql, extras, extensions
@@ -102,3 +104,96 @@ class DB(object):
         """Close connection."""
         self.conn.close()
         log.debug("Closed database successfully")
+
+
+def identifier(relation_name):
+    """Property factory for returning a :class:`psycopg2.sql.Identifier`."""
+    def id_getter(instance):
+        return sql.Identifier(instance.__dict__[relation_name])
+
+    def id_setter(instance, value):
+        instance.__dict__[relation_name] = value
+
+    return property(id_getter, id_setter)
+
+
+def literal(relation_name):
+    """Property factory for returning a :class:`psycopg2.sql.Literal`."""
+    def lit_getter(instance):
+        return sql.Literal(instance.__dict__[relation_name])
+
+    def lit_setter(instance, value):
+        instance.__dict__[relation_name] = value
+
+    return property(lit_getter, lit_setter)
+
+
+class DbRelation:
+    """Database relation name.
+
+    An escaped SQL identifier of the relation name is accessible through the
+    `identifier` property, which returns a :class:`psycopg2.sql.Identifier`.
+
+    Concatenation of identifiers is supported through the `+` operator.
+    For example `DbRelation('schema') + DbRelation('table')`.
+    """
+    identifier = identifier('identifier')
+
+    def __init__(self, relation_name):
+        self.identifier = relation_name
+        self.name = relation_name
+
+    def __repr__(self):
+        return self.name
+
+    def __add__(self, other):
+        if isinstance(other, self.__class__):
+            return sql.Identifier(self.name, other.name)
+        else:
+            raise TypeError(f"Unsupported type {other.__class__}")
+
+
+class Schema:
+    """Database relations.
+
+    The class maps a dictionary to object, where the dict keys are accessible
+    as object attributes. Additionally, the values (eg. table name) can be
+    retrieved as an escaped SQL identifier through the `identifier` property.
+
+    >>> relations = {
+        'schema': 'tile_index',
+        'table': 'bag_index_test',
+            'fields': {
+            'geometry': 'geom',
+            'primary_key': 'id',
+            'unit_name': 'bladnr'}
+        }
+    >>> index = Schema(relations)
+    >>> index.schema.name
+    'tile_index'
+    >>> index.schema.identifier
+    Identifier('tile_index')
+    >>> index.schema + index.table
+    Identifier('tile_index', 'bag_index_test')
+    """
+
+    def __new__(cls, arg):
+        if isinstance(arg, abc.Mapping):
+            return super().__new__(cls)
+        elif isinstance(arg, abc.MutableSequence):
+            return [cls(item) for item in arg]
+        else:
+            return DbRelation(arg)
+
+    def __init__(self, mapping):
+        self.__data = {}
+        for key, value in mapping.items():
+            if iskeyword(key):
+                key += '_'
+            self.__data[key] = value
+
+    def __getattr__(self, name):
+        if hasattr(self.__data, name):
+            return getattr(self.__data, name)
+        else:
+            return Schema(self.__data[name])

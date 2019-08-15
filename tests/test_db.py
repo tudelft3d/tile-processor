@@ -3,7 +3,7 @@
 """Tests for `.db` module."""
 
 import pytest
-from psycopg2 import OperationalError
+from psycopg2 import OperationalError, sql
 
 from tile_processor import db
 
@@ -32,3 +32,27 @@ class TestDB():
             # invalid user
             db.DB(dbname=bag3d_db.dbname, host=bag3d_db.host,
                   port=bag3d_db.port, user='invalid')
+
+
+class TestSchema:
+
+    @pytest.fixture('class')
+    def relations(self):
+        relations = {'schema': 'tile_index',
+                     'table': 'bag_index_test',
+                     'fields': {
+                         'geometry': 'geom',
+                         'primary_key': 'id',
+                         'unit_name': 'bladnr'}
+                     }
+        yield relations
+
+    def test_init(self, relations):
+        index = db.Schema(relations)
+        assert index.schema.name == 'tile_index'
+        assert index.schema.identifier == sql.Identifier('tile_index')
+
+    def test_concatenate(self, relations):
+        index = db.Schema(relations)
+        result = index.schema + index.table
+        assert result == sql.Identifier('tile_index', 'bag_index_test')
