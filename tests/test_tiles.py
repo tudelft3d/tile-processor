@@ -72,3 +72,13 @@ class TestExtent:
                                    feature_schema=db.Schema(features_sch))
         tiles.configure(extent=polygons['file'])
         assert set(tiles.to_process) == expectation
+
+    def test_invalid_params(self):
+        with pytest.raises(AttributeError):
+            tiles = tileconfig.DBTiles(None, None, None)
+            tiles.configure()
+
+        with pytest.raises(AttributeError):
+            tiles = tileconfig.DBTiles(None, None, None)
+            tiles.configure(extent='some_file', tiles=['all'])
+

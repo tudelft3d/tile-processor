@@ -39,12 +39,12 @@ class DBTiles:
             single tile, than the clipped tile-parts within the extent are
             dissolved into a single tile.
         """
+        if (extent and tiles) or ((not extent) and (not tiles)):
+            raise AttributeError("Provide either 'tiles' or 'extent'.")
         if extent:
             self.to_process = self._with_extent(extent)
-        elif tiles:
-            self.to_process = self._with_list(tiles)
         else:
-            raise AttributeError("Either 'tiles' or 'extent' is required.")
+            self.to_process = self._with_list(tiles)
 
     def _with_extent(self, extent) -> List:
         """Select tiles based on a polygon."""
