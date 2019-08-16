@@ -28,7 +28,7 @@ class DBTiles:
         self.index = index_schema
         self.features = feature_schema
 
-    def configure(self, tiles: List[str]=None, extent=None):
+    def configure(self, tiles: List[str] = None, extent=None):
         """Configure the tiles for processing.
 
         :param tiles:
@@ -48,16 +48,23 @@ class DBTiles:
 
     def _with_extent(self, extent) -> List:
         """Select tiles based on a polygon."""
+        log.info("Clipping the tiles to the extent.")
         poly, ewkb = self.read_extent(extent)
         return self.within_extent(ewkb=ewkb)
 
     def _with_list(self, tiles) -> List:
         """Select tiles based on a list of tile IDs."""
-        in_index = self.tiles_in_index(tiles)
+        if ['all',] == tiles:
+            log.info("Getting all tiles from the index.")
+            in_index = self.all_in_index()
+        else:
+            log.info("Verifying if the provided tiles are in the index.")
+            in_index = self.tiles_in_index(tiles)
         if len(in_index) == 0:
             raise AttributeError("None of the provided tiles are present in the"
                                  " index.")
-        return in_index
+        else:
+            return in_index
 
     @staticmethod
     def read_extent(extent: str) -> Tuple[Polygon, str]:
@@ -127,8 +134,9 @@ class DBTiles:
         query = sql.SQL("""
         SELECT DISTINCT tile_id
         FROM {index_}
-        WHERE tile_id = ANY({tiles}::varchar[])
+        WHERE tile_id = ANY({tiles}::VARCHAR[])
         """).format(**query_params)
+        log.debug(self.conn.print_query(query))
         resultset = self.conn.get_query(query)
         in_index = [t[0] for t in resultset]
         diff = set(tiles) - set(in_index)
@@ -136,3 +144,16 @@ class DBTiles:
             log.warning(f"The provided tile IDs {diff} are not in the index, "
                         f"they are skipped.")
         return in_index
+
+    def all_in_index(self) -> List[str]:
+        """Get all tile IDs from the tile index."""
+        query_params = {
+            'index_': self.index.schema + self.index.table
+        }
+        query = sql.SQL("""
+        SELECT DISTINCT tile_id
+        FROM {index_}
+        """).format(**query_params)
+        log.debug(self.conn.print_query(query))
+        resultset = self.conn.get_query(query)
+        return [t[0] for t in resultset]
