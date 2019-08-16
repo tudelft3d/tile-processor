@@ -82,3 +82,33 @@ class TestExtent:
             tiles = tileconfig.DBTiles(None, None, None)
             tiles.configure(extent='some_file', tiles=['all'])
 
+class TestList:
+
+    def test_tiles_in_index(self, bag3d_db):
+        to_process = ['25gn1_10', '25gn1_11', '25gn1_6', 'not_in_index']
+        expectation = ['25gn1_10', '25gn1_11', '25gn1_6']
+        idx_sch = {'schema': 'bag_tiles',
+                   'table': 'index',
+                   'field': {
+                       'pk': 'id',
+                       'geometry': 'geom',
+                       'tile': 'unit'}}
+        tiles = tileconfig.DBTiles(bag3d_db,
+                                   index_schema=db.Schema(idx_sch),
+                                   feature_schema=None)
+        result = tiles.tiles_in_index(to_process)
+        assert set(result) == set(expectation)
+
+    def test_invalid_tiles(self, bag3d_db):
+        to_process = ['bla', 'not_in_index']
+        idx_sch = {'schema': 'bag_tiles',
+                   'table': 'index',
+                   'field': {
+                       'pk': 'id',
+                       'geometry': 'geom',
+                       'tile': 'unit'}}
+        tiles = tileconfig.DBTiles(bag3d_db,
+                                   index_schema=db.Schema(idx_sch),
+                                   feature_schema=None)
+        with pytest.raises(AttributeError):
+            tiles.configure(tiles=to_process)

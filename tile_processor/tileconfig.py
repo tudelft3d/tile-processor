@@ -53,7 +53,11 @@ class DBTiles:
 
     def _with_list(self, tiles) -> List:
         """Select tiles based on a list of tile IDs."""
-        return []
+        in_index = self.tiles_in_index(tiles)
+        if len(in_index) == 0:
+            raise AttributeError("None of the provided tiles are present in the"
+                                 " index.")
+        return in_index
 
     @staticmethod
     def read_extent(extent: str) -> Tuple[Polygon, str]:
@@ -113,3 +117,22 @@ class DBTiles:
         tiles = [tile[0] for tile in resultset]
         log.debug(f"Nr. of tiles in extent: {len(tiles)}")
         return tiles
+
+    def tiles_in_index(self, tiles) -> List[str]:
+        """Return the tile IDs that are present in the tile index."""
+        query_params = {
+            'tiles': sql.Literal(tiles),
+            'index_': self.index.schema + self.index.table
+        }
+        query = sql.SQL("""
+        SELECT DISTINCT tile_id
+        FROM {index_}
+        WHERE tile_id = ANY({tiles}::varchar[])
+        """).format(**query_params)
+        resultset = self.conn.get_query(query)
+        in_index = [t[0] for t in resultset]
+        diff = set(tiles) - set(in_index)
+        if len(diff) > 0:
+            log.warning(f"The provided tile IDs {diff} are not in the index, "
+                        f"they are skipped.")
+        return in_index
