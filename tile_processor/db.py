@@ -132,23 +132,23 @@ class DbRelation:
     """Database relation name.
 
     An escaped SQL identifier of the relation name is accessible through the
-    `identifier` property, which returns a :class:`psycopg2.sql.Identifier`.
+    `sqlid` property, which returns a :class:`psycopg2.sql.Identifier`.
 
     Concatenation of identifiers is supported through the `+` operator.
     For example `DbRelation('schema') + DbRelation('table')`.
     """
-    identifier = identifier('identifier')
+    sqlid = identifier('sqlid')
 
     def __init__(self, relation_name):
-        self.identifier = relation_name
-        self.name = relation_name
+        self.sqlid = relation_name
+        self.string = relation_name
 
     def __repr__(self):
-        return self.name
+        return self.string
 
     def __add__(self, other):
         if isinstance(other, self.__class__):
-            return sql.Identifier(self.name, other.name)
+            return sql.Identifier(self.string, other.string)
         else:
             raise TypeError(f"Unsupported type {other.__class__}")
 
@@ -158,7 +158,7 @@ class Schema:
 
     The class maps a dictionary to object, where the dict keys are accessible
     as object attributes. Additionally, the values (eg. table name) can be
-    retrieved as an escaped SQL identifier through the `identifier` property.
+    retrieved as an escaped SQL identifier through the `sqlid` property.
 
     >>> relations = {
         'schema': 'tile_index',

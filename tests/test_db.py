@@ -49,8 +49,8 @@ class TestSchema:
 
     def test_init(self, relations):
         index = db.Schema(relations)
-        assert index.schema.name == 'tile_index'
-        assert index.schema.identifier == sql.Identifier('tile_index')
+        assert index.schema.string == 'tile_index'
+        assert index.schema.sqlid == sql.Identifier('tile_index')
 
     def test_concatenate(self, relations):
         index = db.Schema(relations)

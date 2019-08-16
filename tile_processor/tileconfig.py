@@ -3,13 +3,13 @@
 """Tile configuration."""
 
 
-import re
 import logging
-from typing import List, Tuple
+import re
 from random import shuffle
+from typing import List, Tuple
 
-from psycopg2 import sql
 import fiona
+from psycopg2 import sql
 from shapely import geos
 from shapely.geometry import shape, Polygon
 
@@ -21,10 +21,12 @@ log = logging.getLogger(__name__)
 class DBTiles:
     """Configures the tiles and tile index that is stored in PostgreSQL."""
 
-    def __init__(self, conn: db.DB, index_schema: db.Schema):
+    def __init__(self, conn: db.DB, index_schema: db.Schema,
+                 feature_schema: db.Schema):
         self.conn = conn
         self.to_process = []
         self.index = index_schema
+        self.features = feature_schema
 
     def configure(self, tiles: List[str]=None, extent=None):
         """Configure the tiles for processing.
@@ -46,7 +48,8 @@ class DBTiles:
 
     def _with_extent(self, extent) -> List:
         """Select tiles based on a polygon."""
-        return []
+        poly, ewkb = self.read_extent(extent)
+        return self.within_extent(ewkb=ewkb)
 
     def _with_list(self, tiles) -> List:
         """Select tiles based on a list of tile IDs."""
@@ -57,6 +60,7 @@ class DBTiles:
         """Reads a polygon from a file and returns it as Shapely polygon and
         EWKB.
 
+        :param extent: Path to a file (eg GeoJSON), contiaining a single polygon
         :return: A tuple of (Shapely Polygon, EWKB). If the extent doesn't have
             a CRS, then a WKB is returned instead of the EWKB.
         """
@@ -77,22 +81,35 @@ class DBTiles:
                 ewkb = poly.wkb_hex
                 return poly, ewkb
 
-    def _get_tiles_in_extent(self, ewkb, reorder=True):
-        """Get a list of tiles that overlap the extent."""
-        ewkb_q = sql.Literal(ewkb)
-        # TODO: user input for a.unit
+    def _within_extent(self, ewkb: str) -> sql.Composed:
+        """Return a query for the features that are `within
+        <http://postgis.net/docs/manual-2.5/ST_Within.html>`_ the extent.
+        """
+        query_params = {
+            'features': self.features.schema + self.features.table,
+            'feature_pk': self.features.table + self.features.field.pk,
+            'feature_geom': self.features.table + self.features.field.geometry,
+            'index_': self.index.schema + self.index.table,
+            'ewkb': sql.Literal(ewkb)
+        }
         query = sql.SQL("""
-        SELECT {table}.{field_idx_unit}
-        FROM {schema}.{table}
-        WHERE st_intersects({table}.{field_idx_geom}, {ewkb}::geometry);
-        """).format(schema=self.index.schema.identifier,
-                    table=self.index.table.identifier,
-                    field_idx_unit=self.index.field.tile.identifier,
-                    field_idx_geom=self.index.field.geometry.identifier,
-                    ewkb=ewkb_q)
+        SELECT {features}.*, idx.tile_id
+        FROM {features} JOIN {index_} idx ON {feature_pk} = idx.gid
+        WHERE st_within({feature_geom}, {ewkb}::geometry)
+        """).format(**query_params)
+        return query
+
+    def within_extent(self, ewkb: str, reorder: bool = True) -> List[str]:
+        """Get a list of tiles that are within the extent."""
+        within_query = self._within_extent(ewkb)
+        query = sql.SQL("""
+        SELECT DISTINCT within.tile_id
+        FROM ({}) within;
+        """).format(within_query)
+        log.debug(self.conn.print_query(query))
         resultset = self.conn.get_query(query)
         if reorder:
             shuffle(resultset)
         tiles = [tile[0] for tile in resultset]
-        log.debug(f"Nr. of tiles in clip extent: {len(tiles)}")
+        log.debug(f"Nr. of tiles in extent: {len(tiles)}")
         return tiles

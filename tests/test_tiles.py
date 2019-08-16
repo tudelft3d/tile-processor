@@ -20,27 +20,55 @@ def polygons(data_dir):
 class TestInit:
 
     def test_init(self, bag3d_db):
-        tiles = tileconfig.DBTiles(bag3d_db)
+        tiles = tileconfig.DBTiles(bag3d_db, index_schema=None,
+                                   feature_schema=None)
 
 class TestExtent:
 
     def test_read_extent(self, polygons):
-        tiles = tileconfig.DBTiles(None)
+        tiles = tileconfig.DBTiles(conn=None, index_schema=None,
+                                   feature_schema=None)
         extent = polygons['file']
         poly, ewkb = tiles.read_extent(extent)
         assert ewkb == polygons['ewkb']
         assert poly.wkt == polygons['wkt']
 
-    def test_get_tiles_in_extent(self, bag3d_db, polygons):
-        expectation = set(['25gn1_10', '25gn1_11', '25gn1_6', '25gn1_7'])
-        sch = {'schema': 'tile_index',
-               'table': 'bag_index',
-               'field': {
-                   'pk': 'id',
-                   'geometry': 'geom',
-                   'tile': 'unit'}}
-        index_schema = db.Schema(sch)
-        tiles = tileconfig.DBTiles(bag3d_db, index_schema=index_schema)
-        result = tiles._get_tiles_in_extent(polygons['ewkb'])
+    def test_clip_to_extent(self, bag3d_db, polygons):
+        expectation = {'25gn1_10', '25gn1_11', '25gn1_6', '25gn1_7'}
+        features_sch = {'schema': 'bagactueel',
+                        'table': 'pandactueelbestaand',
+                        'field': {
+                           'pk': 'gid',
+                           'geometry': 'geovlak',
+                           'tile': 'unit'}}
+        idx_sch = {'schema': 'bag_tiles',
+                   'table': 'index',
+                   'field': {
+                       'pk': 'id',
+                       'geometry': 'geom',
+                       'tile': 'unit'}}
+        tiles = tileconfig.DBTiles(bag3d_db,
+                                   index_schema=db.Schema(idx_sch),
+                                   feature_schema=db.Schema(features_sch))
+        result = tiles.within_extent(polygons['ewkb'])
         assert set(result) == expectation
 
+    def test_config_extent(self, bag3d_db, polygons):
+        expectation = {'25gn1_10', '25gn1_11', '25gn1_6', '25gn1_7'}
+        features_sch = {'schema': 'bagactueel',
+                        'table': 'pandactueelbestaand',
+                        'field': {
+                           'pk': 'gid',
+                           'geometry': 'geovlak',
+                           'tile': 'unit'}}
+        idx_sch = {'schema': 'bag_tiles',
+                   'table': 'index',
+                   'field': {
+                       'pk': 'id',
+                       'geometry': 'geom',
+                       'tile': 'unit'}}
+        tiles = tileconfig.DBTiles(bag3d_db,
+                                   index_schema=db.Schema(idx_sch),
+                                   feature_schema=db.Schema(features_sch))
+        tiles.configure(extent=polygons['file'])
+        assert set(tiles.to_process) == expectation
