@@ -67,6 +67,25 @@ class TemplateWorker:
         return res
 
 
+class TemplateDbWorker:
+    """Runs the template"""
+
+    def execute(self, monitor_log, monitor_interval, tile, **ignore) -> bool:
+        """Execute the TemplateWorker with the provided configuration.
+
+        Simply print the processed tile ID into a file.
+
+        :return: True/False on success/failure
+        """
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        package_dir = os.path.dirname(os.path.dirname(__file__))
+        exe = os.path.join(package_dir, 'src', 'templatedb_processor.sh')
+        command = ['bash', exe, 'templatedb.output', tile]
+        res = run_subprocess(command, monitor_log=monitor_log,
+                             monitor_interval=monitor_interval, tile_id=tile)
+        return res
+
+
 def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
                    monitor_log: logging.Logger = None,
                    monitor_interval: int = 5, tile_id: str = None) -> bool:
@@ -117,3 +136,4 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
 
 factory = WorkerFactory()
 factory.register_worker('template', TemplateWorker)
+factory.register_worker('templatedb', TemplateDbWorker)

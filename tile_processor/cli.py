@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 
 """Console script for tile_processor."""
-import sys
 import logging
+import sys
 
 import click
 
-from tile_processor import recorder
-from tile_processor import controller
+from tile_processor import recorder, controller
 
 
 @click.group()
@@ -92,13 +91,44 @@ def run_template(ctx, threads):
               help="Max. number of worker instances to start, "
                    "each on a separate thread")
 @click.pass_context
+def run_template_db(ctx, threads, configuration):
+    """Run a template process on a batch of database tiles in parallel.
+
+    In case of this command, the tiles are stored in PostgreSQL.
+
+    The 'configuration' argument is the path to the YAML configuration file that
+    controls the batch processing.
+    """
+    tiles = ['all']
+    # Create a Controller and run it
+    templatedb_controller = controller.factory.create(
+        'templatedb',
+        configuration=configuration,
+        threads=threads,
+        monitor_log=ctx.obj['monitor_log'],
+        monitor_interval=ctx.obj['monitor_interval']
+    )
+    templatedb_controller.configure(
+        processor_key='threadprocessor',
+        tiles=tiles
+    )
+    results = templatedb_controller.run()
+    return 0
+
+
+@click.command()
+@click.argument('configuration', type=click.File('r'))
+@click.option('--threads', type=int, default=3,
+              help="Max. number of worker instances to start, "
+                   "each on a separate thread")
+@click.pass_context
 def run_3dfier(ctx, configuration, threads):
     """Run 3dfier"""
     threedfier_controller = controller.factory.create('threedfier',
         configuration=configuration,
         threads=threads,
         monitor_log=ctx.obj['monitor_log'],
-        monitor_interval=ctx.obj['monitor_interval'],
+        monitor_interval=ctx.obj['monitor_interval']
     )
     threedfier_controller.configure(processor_key='threadprocessor')
     threedfier_controller.run()
@@ -152,6 +182,7 @@ def plot_monitor_log(logfile):
 
 
 main.add_command(run_template)
+main.add_command(run_template_db)
 main.add_command(run_3dfier)
 main.add_command(register_schema)
 main.add_command(list_schemas)

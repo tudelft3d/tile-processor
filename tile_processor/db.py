@@ -14,7 +14,7 @@ from psycopg2 import sql, extras, extensions
 log = logging.getLogger(__name__)
 
 
-class DB(object):
+class Db(object):
     """A database connection class.
 
     :raise: :class:`psycopg2.OperationalError`

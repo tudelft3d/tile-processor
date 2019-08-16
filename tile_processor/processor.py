@@ -49,7 +49,7 @@ class ThreadProcessor:
                   threads: int,
                   monitor_log: logging.Logger,
                   monitor_interval: int,
-                  tiles: List[str],
+                  tiles,
                   worker,
                   config: dict):
         """Configure the Processor.
@@ -112,7 +112,7 @@ class ThreadProcessor:
         """
         with ThreadPoolExecutor(max_workers=self.cfg['threads']) as executor:
             future_to_tile = {}
-            for tile in self.tiles:
+            for tile in self.tiles.to_process:
                 self.worker_cfg['tile'] = tile
                 future_to_tile[executor.submit(
                     self.worker, **self.cfg, **self.worker_cfg)] = tile

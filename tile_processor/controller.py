@@ -20,6 +20,8 @@ import yaml
 from click import echo, secho, exceptions
 
 from tile_processor import processor, worker
+from tile_processor import tileconfig
+from tile_processor import db
 
 log = logging.getLogger(__name__)
 logging.getLogger("pykwalify").setLevel(logging.WARNING)
@@ -208,8 +210,83 @@ class TemplateController:
         return results
 
 
+class TemplateDbController:
+    """Controller for tiles that are stored in PostgreSQL."""
+
+    def __init__(self,
+                 configuration: TextIO,
+                 threads: int,
+                 monitor_log: logging.Logger,
+                 monitor_interval: int):
+        self.schema = ConfigurationSchema('templatedb')
+        self.cfg = self.parse_configuration(
+            configuration, threads, monitor_log, monitor_interval
+        )
+        self.processors = {}
+
+    def parse_configuration(self,
+                            config: TextIO,
+                            threads: int,
+                            monitor_log: logging.Logger,
+                            monitor_interval: int) -> dict:
+        """Parse, validate and prepare the configuration file.
+
+        :param monitor_log:
+        :param monitor_interval:
+        :param config: A text stream, containing the configuration
+        :param threads: Number of threads
+        :return: Configuration
+        """
+        cfg = {}
+        try:
+            cfg_stream = self.schema.validate_configuration(config)
+            log.info(f"Configuration file {config.name} is valid")
+        except Exception as e:
+            log.exception(e)
+            raise
+        cfg['threads'] = int(threads)
+        cfg['monitor_log'] = monitor_log
+        cfg['monitor_interval'] = monitor_interval
+        cfg['config'] = cfg_stream
+        return cfg
+
+    def configure(self,
+                  tiles,
+                  processor_key):
+        """Configure the controller."""
+        template_worker = worker.factory.create('templatedb')
+        dbtiles = tileconfig.DbTiles(
+            conn=db.Db(**self.cfg['config']['database']),
+            index_schema=db.Schema(self.cfg['config']['features_index']),
+            feature_schema=db.Schema(self.cfg['config']['features'])
+        )
+        dbtiles.configure(tiles=tiles)
+        self.cfg['tiles'] = dbtiles
+        self.cfg['worker'] = template_worker.execute
+        for part in ['part_A']:
+            self.processors[
+                processor.factory.create(processor_key, name=part)] = part
+        log.info(f"Configured {self.__class__.__name__}")
+
+    def run(self) -> dict:
+        """Run the Controller
+
+        :return: `(processor.name : [tile ID])`
+            Returns the tile IDs per Processor that failed even after
+            restarts
+        """
+        log.info(f"Running {self.__class__.__name__}")
+        results = {}
+        for proc in self.processors:
+            proc.configure(**self.cfg)
+            res = proc.process()
+            results[proc.name] = res
+        log.info(f"Done {self.__class__.__name__}. Failed: {results}")
+        return results
+
+
 class ThreedfierController:
-    """Controller for 3dfier"""
+    """Controller for 3dfier."""
 
     def __init__(self,
                  configuration: TextIO,
@@ -365,4 +442,5 @@ def add_abspath(dirs: List):
 
 factory = ControllerFactory()
 factory.register_controller('template', TemplateController)
+factory.register_controller('templatedb', TemplateDbController)
 factory.register_controller('threedfier', ThreedfierController)

@@ -41,13 +41,13 @@ def features_sch():
 class TestInit:
 
     def test_init(self, bag3d_db):
-        tiles = tileconfig.DBTiles(bag3d_db, index_schema=None,
+        tiles = tileconfig.DbTiles(bag3d_db, index_schema=None,
                                    feature_schema=None)
 
 class TestExtent:
 
     def test_read_extent(self, polygons):
-        tiles = tileconfig.DBTiles(conn=None, index_schema=None,
+        tiles = tileconfig.DbTiles(conn=None, index_schema=None,
                                    feature_schema=None)
         extent = polygons['file']
         poly, ewkb = tiles.read_extent(extent)
@@ -56,7 +56,7 @@ class TestExtent:
 
     def test_clip_to_extent(self, bag3d_db, polygons, idx_sch, features_sch):
         expectation = {'25gn1_10', '25gn1_11', '25gn1_6', '25gn1_7'}
-        tiles = tileconfig.DBTiles(bag3d_db,
+        tiles = tileconfig.DbTiles(bag3d_db,
                                    index_schema=db.Schema(idx_sch),
                                    feature_schema=db.Schema(features_sch))
         result = tiles.within_extent(polygons['ewkb'])
@@ -64,7 +64,7 @@ class TestExtent:
 
     def test_config_extent(self, bag3d_db, polygons, idx_sch, features_sch):
         expectation = {'25gn1_10', '25gn1_11', '25gn1_6', '25gn1_7'}
-        tiles = tileconfig.DBTiles(bag3d_db,
+        tiles = tileconfig.DbTiles(bag3d_db,
                                    index_schema=db.Schema(idx_sch),
                                    feature_schema=db.Schema(features_sch))
         tiles.configure(extent=polygons['file'])
@@ -72,11 +72,11 @@ class TestExtent:
 
     def test_invalid_params(self):
         with pytest.raises(AttributeError):
-            tiles = tileconfig.DBTiles(None, None, None)
+            tiles = tileconfig.DbTiles(None, None, None)
             tiles.configure()
 
         with pytest.raises(AttributeError):
-            tiles = tileconfig.DBTiles(None, None, None)
+            tiles = tileconfig.DbTiles(None, None, None)
             tiles.configure(extent='some_file', tiles=['all'])
 
 class TestList:
@@ -84,7 +84,7 @@ class TestList:
     def test_tiles_in_index(self, bag3d_db, idx_sch):
         to_process = ['25gn1_10', '25gn1_11', '25gn1_6', 'not_in_index']
         expectation = ['25gn1_10', '25gn1_11', '25gn1_6']
-        tiles = tileconfig.DBTiles(bag3d_db,
+        tiles = tileconfig.DbTiles(bag3d_db,
                                    index_schema=db.Schema(idx_sch),
                                    feature_schema=None)
         result = tiles.tiles_in_index(to_process)
@@ -92,7 +92,7 @@ class TestList:
 
     def test_invalid_tiles(self, bag3d_db, idx_sch):
         to_process = ['bla', 'not_in_index']
-        tiles = tileconfig.DBTiles(bag3d_db,
+        tiles = tileconfig.DbTiles(bag3d_db,
                                    index_schema=db.Schema(idx_sch),
                                    feature_schema=None)
         with pytest.raises(AttributeError):
@@ -101,7 +101,7 @@ class TestList:
     def test_all_tiles(self, bag3d_db, idx_sch):
         expectation = ["25gn1_1","25gn1_2","25gn1_3","25gn1_4","25gn1_5","25gn1_6","25gn1_7","25gn1_8","25gn1_9","25gn1_10","25gn1_11","25gn1_12","25gn1_13","25gn1_14","25gn1_15","25gn1_16"]
         to_process = ['all',]
-        tiles = tileconfig.DBTiles(bag3d_db,
+        tiles = tileconfig.DbTiles(bag3d_db,
                                    index_schema=db.Schema(idx_sch),
                                    feature_schema=None)
         tiles.configure(tiles=to_process)
@@ -110,7 +110,7 @@ class TestList:
     def test_all_tiles(self, bag3d_db, idx_sch):
         expectation = ["25gn1_1","25gn1_2","25gn1_3","25gn1_4","25gn1_5","25gn1_6","25gn1_7","25gn1_8","25gn1_9","25gn1_10","25gn1_11","25gn1_12","25gn1_13","25gn1_14","25gn1_15","25gn1_16"]
         to_process = ['all']
-        tiles = tileconfig.DBTiles(bag3d_db,
+        tiles = tileconfig.DbTiles(bag3d_db,
                                    index_schema=db.Schema(idx_sch),
                                    feature_schema=None)
         tiles.configure(tiles=to_process)

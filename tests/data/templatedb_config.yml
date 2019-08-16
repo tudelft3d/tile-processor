@@ -1,0 +1,18 @@
+database:
+    dbname: bag3d_db
+    host: localhost
+    port: 5590
+    user: bag3d_tester
+    password: bag3d_test
+
+features:
+    schema: bagactueel
+    table: pandactueelbestaand
+    field:
+        pk: gid
+        geometry: geom
+        uniqueid: identificatie
+
+features_index:
+    schema: bag_tiles
+    table: index

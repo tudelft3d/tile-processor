@@ -18,10 +18,10 @@ from tile_processor import db
 log = logging.getLogger(__name__)
 
 
-class DBTiles:
+class DbTiles:
     """Configures the tiles and tile index that is stored in PostgreSQL."""
 
-    def __init__(self, conn: db.DB, index_schema: db.Schema,
+    def __init__(self, conn: db.Db, index_schema: db.Schema,
                  feature_schema: db.Schema):
         self.conn = conn
         self.to_process = []

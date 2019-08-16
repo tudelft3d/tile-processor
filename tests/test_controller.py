@@ -27,6 +27,8 @@ class TestConfgurationSchema:
 
 
 class TestTemplate:
+
+    @pytest.mark.skip
     def test_for_debug(self):
         tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
         configuration = {
@@ -45,3 +47,6 @@ class TestTemplate:
         results = template_controller.run()
         for part, failed in results.items():
             assert len(failed) == 0
+
+    def test_configuration(self):
+        pass
