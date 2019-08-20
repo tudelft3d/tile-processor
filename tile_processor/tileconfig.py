@@ -22,11 +22,12 @@ class DbTiles:
     """Configures the tiles and tile index that is stored in PostgreSQL."""
 
     def __init__(self, conn: db.Db, index_schema: db.Schema,
-                 feature_schema: db.Schema):
+                 feature_schema: db.Schema, output=None):
         self.conn = conn
         self.to_process = []
         self.index = index_schema
         self.features = feature_schema
+        self.output = output
 
     def configure(self, tiles: List[str] = None, extent=None):
         """Configure the tiles for processing.

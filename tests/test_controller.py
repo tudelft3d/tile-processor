@@ -6,7 +6,6 @@
 import os
 
 import pytest
-import logging
 
 from tile_processor import controller
 
@@ -50,3 +49,22 @@ class TestTemplate:
 
     def test_configuration(self):
         pass
+
+
+class TestThreedfier:
+
+    def test_for_debug(self, data_dir):
+        threads=3
+        tiles=['all']
+        fp = os.path.join(data_dir, 'bag3d_config.yml')
+        configuration = open(fp, 'r', encoding='utf-8')
+        threedfier_controller = controller.factory.create('threedfier',
+                                                          configuration=configuration,
+                                                          threads=threads,
+                                                          monitor_log=None,
+                                                          monitor_interval=None
+                                                          )
+        threedfier_controller.configure(
+            tiles=list(tiles),
+            processor_key='threadprocessor')
+        threedfier_controller.run()

@@ -38,18 +38,17 @@ class ParallelProcessorFactory:
 class ThreadProcessor:
     """For multithreaded processing."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, tiles):
         self.name = name
         self.worker_cfg = None
         self.cfg = None
-        self.tiles = None
+        self.tiles = tiles
         self.worker = None
 
     def configure(self,
                   threads: int,
                   monitor_log: logging.Logger,
                   monitor_interval: int,
-                  tiles,
                   worker,
                   config: dict):
         """Configure the Processor.
@@ -58,20 +57,20 @@ class ThreadProcessor:
         :param config: Worker configuration
         :param monitor_log: Logger for resource monitoring
         :param threads: The max. number of workers to call
-        :param tiles: The set of tiles that are processed by the workers
         :param worker: A callable worker, created by
             :meth:`~.worker.WorkerFactory.create`. For example in case of
             :class:`~.worker.ThreedfierWorker` you need to pass the
             :meth:`~.worker.ThreedfierWorker.execute` callable, and the
             class instance.
         """
+        log.debug(f"Output directory: {self.tiles.output}")
+        config['output'] = self.tiles.output
         self.worker_cfg = config
         self.cfg = {
             'threads': threads,
             'monitor_log': monitor_log,
             'monitor_interval': monitor_interval
         }
-        self.tiles = tiles
         self.worker = worker
         log.info(f"Configured {self.__class__.__name__}:{self.name}")
         # log.debug(pformat(vars(self)))

@@ -101,3 +101,10 @@ mapping:
                         type: str
                         required: True
                         desc: Name of the field that contains the version of the available AHN file. This field is automatically created and populated if --update-ahn and --import-tile-idx are used.
+
+    output:
+        type: map
+        mapping:
+            dir:
+                type: str
+                required: True

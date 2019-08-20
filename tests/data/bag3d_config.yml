@@ -30,3 +30,6 @@ elevation_index:
         geometry: geom
         tile: tile
         version: ahn_version
+
+output:
+    dir: /tmp/3DBAG

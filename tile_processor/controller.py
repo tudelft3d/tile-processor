@@ -19,9 +19,7 @@ import pykwalify.errors
 import yaml
 from click import echo, secho, exceptions
 
-from tile_processor import processor, worker
-from tile_processor import tileconfig
-from tile_processor import db
+from tile_processor import processor, worker, tileconfig, db, output
 
 log = logging.getLogger(__name__)
 logging.getLogger("pykwalify").setLevel(logging.WARNING)
@@ -261,11 +259,11 @@ class TemplateDbController:
             feature_schema=db.Schema(self.cfg['config']['features'])
         )
         dbtiles.configure(tiles=tiles)
-        self.cfg['tiles'] = dbtiles
         self.cfg['worker'] = template_worker.execute
         for part in ['part_A']:
-            self.processors[
-                processor.factory.create(processor_key, name=part)] = part
+            proc = processor.factory.create(
+                processor_key, name=part, tiles=dbtiles)
+            self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
     def run(self) -> dict:
@@ -409,37 +407,43 @@ class ThreedfierController:
 
     def configure(self, tiles, processor_key: str):
         """Configure the control logic."""
-        # Configure the tiles
-        # Configure the borders of the different AHN versions
         threedfier_worker = worker.factory.create('threedfier')
         self.cfg['worker'] = threedfier_worker.execute
+
+        # Configure the tiles
         ahn_2 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
             feature_schema=db.Schema(self.cfg['config']['features'])
         )
         ahn_2.configure(tiles=tiles, version=2)
+
         ahn_3 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
             feature_schema=db.Schema(self.cfg['config']['features'])
         )
         ahn_3.configure(tiles=tiles, version=3)
+
         ahn_border = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
             feature_schema=db.Schema(self.cfg['config']['features'])
         )
         ahn_border.configure(tiles=tiles, on_border=True)
+
+        out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
+        # Set up logic
         parts = {
             'AHN2': ahn_2,
             'AHN3': ahn_3,
             'AHN_border': ahn_border
         }
         for part, ahntiles in parts.items():
-            self.cfg['tiles'] = ahntiles
-            self.processors[
-                processor.factory.create(processor_key, name=part)] = part
+            ahntiles.output = output.DirOutput(out_dir.add(part))
+            proc = processor.factory.create(
+                processor_key, name=part, tiles=ahntiles)
+            self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
     def run(self):

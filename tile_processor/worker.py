@@ -89,8 +89,12 @@ class TemplateDbWorker:
 class ThreedfierWorker:
     """Runs 3dfier."""
 
-    def execute(self, tile, **ignore) -> bool:
+    def execute(self, tile, output, **ignore) -> bool:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
+        outf = output.add(f"{tile}.txt")
+        log.debug(f"Writing {outf}")
+        with open(outf, 'w') as fo:
+            fo.write('')
         return True
 
 def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
