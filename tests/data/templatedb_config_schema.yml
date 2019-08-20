@@ -53,6 +53,21 @@ mapping:
             table:
                 type: str
                 required: True
+            field:
+                type: map
+                mapping:
+                    pk:
+                        type: str
+                        required: True
+                        desc: Name of the primary key field in bag_units
+                    geometry:
+                        type: str
+                        required: True
+                        desc: Name of the geometry field in bag_units
+                    tile:
+                        type: str
+                        required: True
+                        desc: Name of the field of the tile index unit names
 
     elevation_index:
         type: map

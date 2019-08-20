@@ -100,8 +100,7 @@ class ThreadProcessor:
                                 if result is False]
             else:
                 break
-        log.info(f"Done {self.__class__.__name__}:{self.name}. "
-                 f"Failed: {failed_tiles}")
+        log.info(f"Done {self.__class__.__name__}:{self.name}")
         return failed_tiles
 
     def _process(self):

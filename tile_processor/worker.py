@@ -48,7 +48,7 @@ class WorkerFactory:
 
 
 class TemplateWorker:
-    """Runs the template"""
+    """Runs the template."""
 
     def execute(self, monitor_log, monitor_interval, tile, **ignore) -> bool:
         """Execute the TemplateWorker with the provided configuration.
@@ -68,7 +68,7 @@ class TemplateWorker:
 
 
 class TemplateDbWorker:
-    """Runs the template"""
+    """Runs the template."""
 
     def execute(self, monitor_log, monitor_interval, tile, **ignore) -> bool:
         """Execute the TemplateWorker with the provided configuration.
@@ -85,6 +85,13 @@ class TemplateDbWorker:
                              monitor_interval=monitor_interval, tile_id=tile)
         return res
 
+
+class ThreedfierWorker:
+    """Runs 3dfier."""
+
+    def execute(self, tile, **ignore) -> bool:
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        return True
 
 def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
                    monitor_log: logging.Logger = None,
@@ -137,3 +144,4 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
 factory = WorkerFactory()
 factory.register_worker('template', TemplateWorker)
 factory.register_worker('templatedb', TemplateDbWorker)
+factory.register_worker('threedfier', ThreedfierWorker)

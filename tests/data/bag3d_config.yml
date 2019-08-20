@@ -14,19 +14,19 @@ features:
         uniqueid: identificatie
 
 features_index:
-    schema: bag_tiles
-    table: index
+    schema: tile_index
+    table: bag_index
     field:
         pk: gid
         geometry: geom
-        tile: tile
+        tile: unit
 
 elevation_index:
     schema: tile_index
     table: ahn_index
     borders: border_tiles
     field:
-        pk: id
+        pk: gid
         geometry: geom
-        tile: bladnr
+        tile: tile
         version: ahn_version

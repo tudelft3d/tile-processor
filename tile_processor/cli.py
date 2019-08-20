@@ -118,11 +118,12 @@ def run_template_db(ctx, threads, configuration):
 
 @click.command()
 @click.argument('configuration', type=click.File('r'))
+@click.argument('tiles', type=str, nargs=-1)
 @click.option('--threads', type=int, default=3,
               help="Max. number of worker instances to start, "
                    "each on a separate thread")
 @click.pass_context
-def run_3dfier(ctx, configuration, threads):
+def run_3dfier(ctx, configuration, tiles, threads):
     """Run 3dfier"""
     threedfier_controller = controller.factory.create('threedfier',
         configuration=configuration,
@@ -130,7 +131,9 @@ def run_3dfier(ctx, configuration, threads):
         monitor_log=ctx.obj['monitor_log'],
         monitor_interval=ctx.obj['monitor_interval']
     )
-    threedfier_controller.configure(processor_key='threadprocessor')
+    threedfier_controller.configure(
+        tiles=list(tiles),
+        processor_key='threadprocessor')
     threedfier_controller.run()
 
 
