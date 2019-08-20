@@ -22,9 +22,10 @@ def idx_sch():
     yield {'schema': 'bag_tiles',
            'table': 'index',
            'field': {
-               'pk': 'id',
+               'pk': 'gid',
                'geometry': 'geom',
-               'tile': 'unit'}}
+               'tile': 'tile'}
+           }
 
 
 @pytest.fixture('module')
@@ -35,7 +36,22 @@ def features_sch():
            'field': {
                'pk': 'gid',
                'geometry': 'geovlak',
-               'tile': 'unit'}}
+               'tile': 'tile'}
+           }
+
+
+@pytest.fixture('module')
+def ahn_sch():
+    """Schema for the AHN index"""
+    yield {'schema': 'tile_index',
+           'table': 'ahn_index',
+           'borders': 'border_tiles',
+           'field': {
+               'pk': 'gid',
+               'geometry': 'geom',
+               'tile': 'tile',
+               'version': 'ahn_version'}
+           }
 
 
 class TestInit:
@@ -115,3 +131,116 @@ class TestList:
                                    feature_schema=None)
         tiles.configure(tiles=to_process)
         assert set(tiles.to_process) == set(expectation)
+
+
+class TestAHN:
+
+    def test_versions(self, bag3d_db, ahn_sch):
+        expectation = [2,3]
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        result = ahn_tiles.versions()
+        assert set(result) == set(expectation)
+
+    def test_version_border(self, bag3d_db, ahn_sch):
+        expectation = ["25gn1_3", "25gn1_4", "25gn1_6", "25gn1_7", "25gn1_10", "25gn1_14"]
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        result = ahn_tiles._version_border()
+        assert set(result) == set(expectation)
+
+    def test_version_not_border(self, bag3d_db, ahn_sch):
+        expectation = {3: ['25gn1_1', '25gn1_2', '25gn1_5', '25gn1_9', '25gn1_13'],
+                       2: ['25gn1_8', '25gn1_11', '25gn1_12', '25gn1_15', '25gn1_16']}
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        result = ahn_tiles._version_not_border()
+        assert set(result) == set(expectation)
+
+    def test_configure_v3(self, bag3d_db, ahn_sch):
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        expectation = ['25gn1_1', '25gn1_2', '25gn1_5', '25gn1_9', '25gn1_13']
+        ahn_tiles.configure(tiles=['all'],
+                            extent=None,
+                            version=3,
+                            on_border=False)
+        assert set(ahn_tiles.to_process) == set(expectation)
+
+    def test_configure_v2(self, bag3d_db, ahn_sch):
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        expectation = ['25gn1_8', '25gn1_11', '25gn1_12', '25gn1_15', '25gn1_16']
+        ahn_tiles.configure(tiles=['all'],
+                            extent=None,
+                            version=2,
+                            on_border=False)
+        assert set(ahn_tiles.to_process) == set(expectation)
+
+    def test_configure_v2_list(self, bag3d_db, ahn_sch):
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        expectation = ['25gn1_8', '25gn1_11']
+        ahn_tiles.configure(tiles=['25gn1_8', '25gn1_11', '25gn1_2', '25gn1_5'],
+                            extent=None,
+                            version=2,
+                            on_border=False)
+        assert set(ahn_tiles.to_process) == set(expectation)
+
+    def test_configure_border(self, bag3d_db, ahn_sch):
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        expectation = ["25gn1_10", "25gn1_14"]
+        ahn_tiles.configure(tiles=['25gn1_10', '25gn1_11', '25gn1_14', '25gn1_15'],
+                            extent=None,
+                            version=2,
+                            on_border=True)
+        assert set(ahn_tiles.to_process) == set(expectation)
+
+    def test_configure_extent(self, bag3d_db, ahn_sch, polygons):
+        ahn_tiles = tileconfig.DbTilesAHN(
+            conn=bag3d_db,
+            index_schema=db.Schema(ahn_sch),
+            feature_schema=None
+        )
+        expectation = ["25gn1_10", "25gn1_6", "25gn1_7"]
+        ahn_tiles.configure(tiles=None,
+                            extent=polygons['file'],
+                            version=2,
+                            on_border=True)
+        assert set(ahn_tiles.to_process) == set(expectation)
+
+        expectation = ["25gn1_11"]
+        ahn_tiles.configure(tiles=None,
+                            extent=polygons['file'],
+                            version=2,
+                            on_border=False)
+        assert set(ahn_tiles.to_process) == set(expectation)
+
+        expectation = []
+        ahn_tiles.configure(tiles=None,
+                            extent=polygons['file'],
+                            version=3,
+                            on_border=False)
+        assert set(ahn_tiles.to_process) == set(expectation)

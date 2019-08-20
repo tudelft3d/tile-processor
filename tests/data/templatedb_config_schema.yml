@@ -53,3 +53,36 @@ mapping:
             table:
                 type: str
                 required: True
+
+    elevation_index:
+        type: map
+        mapping:
+            schema:
+                type: str
+                required: True
+            table:
+                type: str
+                required: True
+            borders:
+                type: str
+                required: False
+                desc: Name of the table that contains those tiles which are on the border of the AHN3, and thus these tiles are missing points in AHN3
+            field:
+                type: map
+                mapping:
+                    pk:
+                        type: str
+                        required: True
+                        desc: Name of the primary key field in bag_units
+                    geometry:
+                        type: str
+                        required: True
+                        desc: Name of the geometry field in bag_units
+                    tile:
+                        type: str
+                        required: True
+                        desc: Name of the field of the tile index unit names
+                    version:
+                        type: str
+                        required: True
+                        desc: Name of the field that contains the version of the available AHN file. This field is automatically created and populated if --update-ahn and --import-tile-idx are used.

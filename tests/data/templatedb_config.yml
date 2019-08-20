@@ -16,3 +16,13 @@ features:
 features_index:
     schema: bag_tiles
     table: index
+
+elevation_index:
+    schema: tile_index
+    table: ahn_index
+    borders: border_tiles
+    field:
+        pk: id
+        geometry: geom
+        tile: bladnr
+        version: ahn_version
