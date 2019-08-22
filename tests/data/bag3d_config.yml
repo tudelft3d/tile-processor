@@ -45,3 +45,5 @@ elevation_index:
 
 output:
     dir: /tmp/3DBAG
+
+path_3dfier: /home/balazs/Development/3dfier_src/build_bag3d/3dfier

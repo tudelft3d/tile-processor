@@ -319,89 +319,18 @@ class ThreedfierController:
             raise
 
         cfg['config'] = cfg_stream
-        # cfg['config']['in'] = config.name
-        # rootdir = os.path.dirname(config.name)
-        # rest_dir = os.path.join(rootdir, "cfg_rest")
-        # ahn2_dir = os.path.join(rootdir, "cfg_ahn2")
-        # ahn3_dir = os.path.join(rootdir, "cfg_ahn3")
-        # for d in [rest_dir, ahn2_dir, ahn3_dir]:
-        #     if os.path.isdir(d):
-        #         rmtree(d, ignore_errors=True, onerror=None)
-        #     try:
-        #         os.makedirs(d, exist_ok=False)
-        #         log.debug("Created %s", d)
-        #     except Exception as e:
-        #         log.exception(e)
-        # cfg['config']['out_rest'] = os.path.join(rest_dir, "bag3d_cfg_rest.yml")
-        # cfg['config']['out_border_ahn2'] = os.path.join(
-        #     ahn2_dir,
-        #     "bag3d_cfg_border_ahn2.yml"
-        # )
-        # cfg['config']['out_border_ahn3'] = os.path.join(
-        #     ahn3_dir,
-        #     "bag3d_cfg_border_ahn3.yml"
-        # )
+        directory_mapping = {}
+        for mapping in cfg_stream['elevation']['directories']:
+            dir, properties = mapping.popitem()
+            if not os.path.isabs(dir):
+                raise ValueError(f"Path {dir} is not absolute in "
+                                 f"elevation:directories")
+            directory_mapping[dir] = properties
+        cfg['config']['directory_mapping'] = directory_mapping
+
         cfg['threads'] = int(threads)
         cfg['monitor_log'] = monitor_log
         cfg['monitor_interval'] = monitor_interval
-
-        # # -- Get config file parameters
-        # # database connection
-        # cfg['database'] = cfg_stream['database']
-        #
-        # # 2D polygons
-        # cfg['input_polygons'] = cfg_stream['input_polygons']
-        # try:
-        #     # in case user gave " " or "" for 'extent'
-        #     if len(cfg_stream['input_polygons']['extent']) <= 1:
-        #         extent_file = None
-        #         log.debug('extent string has length <= 1')
-        #     cfg['input_polygons']['extent_file'] = os.path.abspath(
-        #         cfg_stream['input_polygons']['extent'])
-        #     cfg['input_polygons']['tile_list'] = None
-        # except (NameError, AttributeError, TypeError):
-        #     tile_list = cfg_stream['input_polygons']['tile_list']
-        #     assert isinstance(
-        #         tile_list,
-        #         list), "Please provide input for tile_list as a list: [...]"
-        #     cfg['input_polygons']['tile_list'] = tile_list
-        #     cfg['input_polygons']['extent_file'] = None
-        # # 'user_schema' is used for the '_clip3dfy_' and '_union' views, thus
-        # # only use 'user_schema' if 'extent' is provided
-        # user_schema = cfg_stream['input_polygons']['user_schema']
-        # if (user_schema is None) or (extent_file is None):
-        #     log.debug("user_schema or extent is None")
-        #     cfg['input_polygons']['user_schema'] = cfg['input_polygons'][
-        #         'tile_schema']
-        #
-        # # AHN point cloud
-        # cfg['input_elevation'] = cfg_stream['input_elevation']
-        # cfg['input_elevation']['dataset_dir'] = add_abspath(
-        #     cfg_stream['input_elevation']['dataset_dir'])
-        #
-        # # quality checks
-        # if cfg_stream['quality']['ahn2_rast_dir']:
-        #     os.makedirs(cfg_stream['quality']['ahn2_rast_dir'], exist_ok=True)
-        # if cfg_stream['quality']['ahn3_rast_dir']:
-        #     os.makedirs(cfg_stream['quality']['ahn3_rast_dir'], exist_ok=True)
-        # cfg['quality'] = cfg_stream['quality']
-        #
-        # # partitioning of the 2D polygons
-        # cfg['tile_index'] = cfg_stream['tile_index']
-        #
-        # # output control
-        # cfg['output'] = cfg_stream['output']
-        # cfg['output']['staging']['dir'] = os.path.abspath(
-        #     cfg_stream['output']['staging']['dir'])
-        # os.makedirs(cfg['output']['staging']['dir'], exist_ok=True)
-        # cfg['output']['production']['dir'] = os.path.abspath(
-        #     cfg_stream['output']['production']['dir'])
-        # os.makedirs(cfg['output']['production']['dir'], exist_ok=True)
-        #
-        # # executables
-        # cfg['path_3dfier'] = cfg_stream['path_3dfier']
-        # cfg['path_lasinfo'] = cfg_stream['path_lasinfo']
-        # log.info(f"Configured {self.__class__.__name__}")
 
         return cfg
 
@@ -411,26 +340,34 @@ class ThreedfierController:
         self.cfg['worker'] = threedfier_worker.execute
 
         # Configure the tiles
+        # NOTE BD: Using the elevation_index as feature tile index works for
+        # now, because the elevation tiles equal the feature tiles. However,
+        # if that is not the case, then I'll need to partition the AHN tiles
+        # as I do with the feature tiles below, and use the AHN tile partitions
+        # to partition the feature tiles too.
         ahn_2 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
             feature_schema=db.Schema(self.cfg['config']['features'])
         )
-        ahn_2.configure(tiles=tiles, version=2)
+        ahn_2.configure(tiles=tiles, version=2,
+                        directory_mapping=self.cfg['config']['directory_mapping'])
 
         ahn_3 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
             feature_schema=db.Schema(self.cfg['config']['features'])
         )
-        ahn_3.configure(tiles=tiles, version=3)
+        ahn_3.configure(tiles=tiles, version=3,
+                        directory_mapping=self.cfg['config']['directory_mapping'])
 
         ahn_border = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
             feature_schema=db.Schema(self.cfg['config']['features'])
         )
-        ahn_border.configure(tiles=tiles, on_border=True)
+        ahn_border.configure(tiles=tiles, on_border=True,
+                             directory_mapping=self.cfg['config']['directory_mapping'])
 
         out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
         # Set up logic

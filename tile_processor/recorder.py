@@ -43,7 +43,8 @@ def configure_ressource_logging() -> logging.Logger:
 
     :return: A configured Logger
     """
-    logname = "tile-resource-usage_" + datetime.utcnow().date().isoformat() + ".tsv"
+    tstamp = datetime.now().isoformat(timespec='seconds')
+    logname = f"tile-resource-usage_{tstamp}.tsv"
     echo(f"Saving resource monitor log to '{logname}'")
     log_res = logging.getLogger('subprocess')
     log_res.propagate = False

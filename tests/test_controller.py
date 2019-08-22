@@ -56,7 +56,7 @@ class TestThreedfier:
     def test_for_debug(self, data_dir):
         threads=3
         tiles=['all']
-        fp = os.path.join(data_dir, 'bag3d_config.yml')
+        fp = os.path.join(data_dir, 'bag3d_config_balazs.yml')
         configuration = open(fp, 'r', encoding='utf-8')
         threedfier_controller = controller.factory.create('threedfier',
                                                           configuration=configuration,

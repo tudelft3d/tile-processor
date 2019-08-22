@@ -63,8 +63,8 @@ class ThreadProcessor:
             :meth:`~.worker.ThreedfierWorker.execute` callable, and the
             class instance.
         """
-        log.debug(f"Output directory: {self.tiles.output}")
-        config['output'] = self.tiles.output
+        log.debug(f"Output directory: {self.tiles.output.path}")
+        config['tiles'] = self.tiles
         self.worker_cfg = config
         self.cfg = {
             'threads': threads,
@@ -93,7 +93,7 @@ class ThreadProcessor:
                 _restart += 1
                 log.info(f"Restarting {self.__class__.__name__}:{self.name} "
                          f"with {failed_tiles}")
-                self.tiles = failed_tiles
+                self.tiles.to_process = failed_tiles
                 proc_result = self._process()
                 failed_tiles = [tile for tile, result in proc_result
                                 if result is False]

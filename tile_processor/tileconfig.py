@@ -179,7 +179,13 @@ class DbTiles:
 
 
 class DbTilesAHN(DbTiles):
-    """AHN tiles where the tile index is stored in PostgreSQL."""
+    """AHN tiles where the tile index is stored in PostgreSQL, the point cloud
+    is stored in files on the file system."""
+
+    def __init__(self, conn: db.Db, index_schema: db.Schema,
+                 feature_schema: db.Schema, output=None):
+        super().__init__(conn, index_schema, feature_schema, output)
+        self.file_index = None
 
     def versions(self) -> List[int]:
         query_params = {
@@ -242,56 +248,8 @@ class DbTilesAHN(DbTiles):
         return {key:value for key, value in self.conn.get_query(query)}
         # return self.conn.get_dict(query)
 
-    def configure(self, tiles: List[str] = None, extent=None,
-                  version: int=None, on_border: bool=False):
-        """Prepare the AHN tiles for processing.
-
-        First `tiles` and `extent` are evaluated, then `version` and
-        `on_border`. The arguments `version` and `border` are mutually exclusive
-
-        :param tiles: See :meth:`.DbTiles.configure`
-        :param extent: See :meth:`.DbTiles.configure`
-        :param version: Limit the tiles to AHN provided version. This selection
-            *excludes* the AHN version border. If `None` then no limitation.
-        :param on_border: If `True` limit the tiles to the border of the two
-            AHN version coverages. If `False`, exclude this border area. If
-            `None`, no limitation.
-        """
-        super().configure(tiles=tiles, extent=extent)
-        if on_border is None and version is None:
-            log.info(f"{self.__class__.__name__} configuration done.")
-        elif version is not None and on_border is False:
-            versions = self.versions()
-            if version not in versions:
-                raise ValueError(f"Version {version} is not in the index.")
-            else:
-                tiles_per_version = self._version_not_border()
-                version_set = set(tiles_per_version[version])
-                process_set = set(self.to_process)
-                self.to_process = list(version_set.intersection(process_set))
-                log.info(f"{self.__class__.__name__} configuration done.")
-        elif on_border:
-            border_set = set(self._version_border())
-            process_set = set(self.to_process)
-            self.to_process = list(border_set.intersection(process_set))
-            log.info(f"{self.__class__.__name__} configuration done.")
-        else:
-            raise AttributeError(
-                f"Unknown configuration tiles:{tiles}, extent:{extent}, "
-                f"version:{version}, on_border:{on_border}.")
-
-class FileTiles:
-    """Configures the tiles and features that are stored in the filesystem."""
-
-    def __init__(self, index_location, feature_location,
-                 directory_mapping, output=None):
-        self.to_process = []
-        self.index = index_location
-        self.features = feature_location
-        self.file_index = self.create_file_index(directory_mapping)
-        self.output = output
-
-    def create_file_index(self, directory_mapping: dict) -> dict:
+    @staticmethod
+    def create_file_index(directory_mapping: dict) -> dict:
         """Create an index of files in the given directories.
 
         Maps the location of the files to the tile IDs. This assumes that there
@@ -331,6 +289,7 @@ class FileTiles:
         :return: { tile_id: [ path/to/file ] }
         """
         if not directory_mapping:
+            log.debug("directory_mapping is None")
             return None
 
         f_idx = {}
@@ -374,3 +333,87 @@ class FileTiles:
             priority.append(properties['priority'])
         log.debug(f"File index: {file_index}")
         return file_index
+
+    def match_feature_tile(self, feature_tile, idx_identical: bool=True):
+        """Find the elevation tiles that match the footprint tile."""
+        if idx_identical:
+            query_params = {
+                'index_': self.index.schema + self.index.table,
+                'table_': self.index.table.sqlid,
+                'tile_field': self.index.field.tile.sqlid,
+                'tile': sql.Literal(feature_tile)
+            }
+            query = sql.SQL("""
+                SELECT
+                    {tile_field}
+                    ,{table_}.ahn_version
+                FROM
+                    {index_}
+                WHERE {tile_field} = {tile};
+                """).format(**query_params)
+            log.debug(self.conn.print_query(query))
+            resultset = self.conn.get_query(query)
+            tiles = {}
+            for tile in resultset:
+                tile_id = tile[0].lower()
+                if tile[1]:
+                    if tile_id not in tiles:
+                        tiles[tile_id] = int(tile[1])
+                    else:
+                        log.error(f"Tile ID {tile_id} is duplicate")
+                else:
+                    log.warning(f"Tile {tile_id} ahn_version is NULL")
+        else:
+           raise NotImplementedError("Only identical feature and elevation tiles"
+                                     " are implemented. "
+                                     "See bag3d.batch3dfier.find_pc_tiles() for "
+                                     "implementing this path.")
+        return tiles
+
+
+    def configure(self, tiles: List[str] = None, extent=None,
+                      version: int=None, on_border: bool=False,
+                      directory_mapping: dict=None):
+            """Prepare the AHN tiles for processing.
+
+            First `tiles` and `extent` are evaluated, then `version` and
+            `on_border`. The arguments `version` and `border` are mutually exclusive
+
+            :param tiles: See :meth:`.DbTiles.configure`
+            :param extent: See :meth:`.DbTiles.configure`
+            :param version: Limit the tiles to AHN provided version. This selection
+                *excludes* the AHN version border. If `None` then no limitation.
+            :param on_border: If `True` limit the tiles to the border of the two
+                AHN version coverages. If `False`, exclude this border area. If
+                `None`, no limitation.
+            """
+            super().configure(tiles=tiles, extent=extent)
+            if on_border is None and version is None:
+                log.info(f"{self.__class__.__name__} configuration done.")
+            elif version is not None and on_border is False:
+                versions = self.versions()
+                if version not in versions:
+                    raise ValueError(f"Version {version} is not in the index.")
+                else:
+                    tiles_per_version = self._version_not_border()
+                    version_set = set(tiles_per_version[version])
+                    process_set = set(self.to_process)
+                    self.to_process = list(version_set.intersection(process_set))
+                    file_index = self.create_file_index(directory_mapping)
+                    self.file_index = {tile: file
+                                       for tile, file in file_index.items()
+                                       if tile in self.to_process}
+                    log.info(f"{self.__class__.__name__} configuration done.")
+            elif on_border:
+                border_set = set(self._version_border())
+                process_set = set(self.to_process)
+                self.to_process = list(border_set.intersection(process_set))
+                file_index = self.create_file_index(directory_mapping)
+                self.file_index = {tile: file
+                                   for tile, file in file_index.items()
+                                   if tile in self.to_process}
+                log.info(f"{self.__class__.__name__} configuration done.")
+            else:
+                raise AttributeError(
+                    f"Unknown configuration tiles:{tiles}, extent:{extent}, "
+                    f"version:{version}, on_border:{on_border}.")

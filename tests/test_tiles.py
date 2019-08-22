@@ -288,11 +288,7 @@ class TestAHN:
                             on_border=False)
         assert set(ahn_tiles.to_process) == set(expectation)
 
-
-class TestFileTiles:
-    """Test FileTiles class."""
-
-    def test_filetiles(self, data_dir, file_index_ahn):
+    def test_create_file_index(self, data_dir, file_index_ahn):
         bag3d_cfg = os.path.join(data_dir, 'bag3d_config.yml')
         with open(bag3d_cfg, 'r') as fo:
             f = yaml.load(fo, yaml.FullLoader)
@@ -303,10 +299,10 @@ class TestFileTiles:
             abs_dir = os.path.join(data_dir, dir)
             directory_mapping[abs_dir] = value
 
-        ft = tileconfig.FileTiles(
-            index_location=None,
-            feature_location=None,
-            directory_mapping=None,
+        ft = tileconfig.DbTilesAHN(
+            conn=None,
+            index_schema=None,
+            feature_schema=None,
             output=None
         )
         result = ft.create_file_index(directory_mapping)

@@ -124,3 +124,6 @@ mapping:
             dir:
                 type: str
                 required: True
+
+    path_3dfier:
+        type: str
