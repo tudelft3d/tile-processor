@@ -13,6 +13,18 @@ features:
         geometry: geom
         uniqueid: identificatie
 
+elevation:
+    directories:
+        -   ahn/ahn3:
+                file_pattern: "C{tile}.laz"
+                priority: 1
+        -   ahn/ahn2:
+                file_pattern: "unit_{tile}.laz"
+                priority: 2
+        -   ahn/ahn1:
+                file_pattern: "m-{tile}.laz"
+                priority: 3
+
 features_index:
     schema: tile_index
     table: bag_index

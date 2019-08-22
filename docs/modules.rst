@@ -31,3 +31,15 @@ Database access
 
 .. automodule:: tile_processor.db
     :members:
+
+Tile configuration
+------------------
+
+.. automodule:: tile_processor.tileconfig
+    :members:
+
+Output control
+------------------
+
+.. automodule:: tile_processor.output
+    :members:

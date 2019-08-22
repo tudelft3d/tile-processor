@@ -78,10 +78,10 @@ class ThreadProcessor:
     def process(self, restart: int = 3) -> List[str]:
         """Runs the workers asynchronously, using a `ThreadPoolExecutor
         <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_
-         and restarts the tiles that failed.
+        and restarts the tiles that failed.
 
-         :param restart: Nr. of restarts for failed tiles
-         :return: The IDs of the tiles that failed even after the restarts
+        :param restart: Nr. of restarts for failed tiles
+        :return: The IDs of the tiles that failed even after the restarts
         """
         log.info(f"Running {self.__class__.__name__}:{self.name}")
         proc_result = self._process()

@@ -4,6 +4,7 @@
 
 
 import logging
+import os
 import re
 from random import shuffle
 from typing import List, Tuple
@@ -34,14 +35,12 @@ class DbTiles:
 
         You can provide either `tiles` or `extent`.
 
-        :param tiles:
-            A list of tile IDs, or a list with a single item `['all',]` for
-            processing all tiles.
-        :param extent:
-            A polygon for selecting the tiles. The selected tiles are clipped by
-             the `extent`. If the area of the `extent` is less than that of a
-            single tile, than the clipped tile-parts within the extent are
-            dissolved into a single tile.
+        :param tiles: A list of tile IDs, or a list with a single item
+            `['all',]` for processing all tiles.
+        :param extent: A polygon for selecting the tiles. The selected tiles
+            are clipped by the `extent`. If the area of the `extent` is less
+            than that of a single tile, than the clipped tile-parts within the
+            extent are dissolved into a single tile.
         """
         if (extent and tiles) or ((not extent) and (not tiles)):
             raise AttributeError("Provide either 'tiles' or 'extent'.")
@@ -280,3 +279,98 @@ class DbTilesAHN(DbTiles):
             raise AttributeError(
                 f"Unknown configuration tiles:{tiles}, extent:{extent}, "
                 f"version:{version}, on_border:{on_border}.")
+
+class FileTiles:
+    """Configures the tiles and features that are stored in the filesystem."""
+
+    def __init__(self, index_location, feature_location,
+                 directory_mapping, output=None):
+        self.to_process = []
+        self.index = index_location
+        self.features = feature_location
+        self.file_index = self.create_file_index(directory_mapping)
+        self.output = output
+
+    def create_file_index(self, directory_mapping: dict) -> dict:
+        """Create an index of files in the given directories.
+
+        Maps the location of the files to the tile IDs. This assumes that there
+        is a tile index, and the content of each tile (the features) are stored
+        in one file per tile. And the file names contain the corresponting
+        tile ID.
+
+        You can provide the ``directory_mapping`` as a sequence of directory
+        configurations:
+
+        .. code-block:: yaml
+
+            directories:
+                -   < directory_path >:
+                        file_pattern: "<pattern>{tile}<pattern>"
+                        priority: 1
+
+        * ``directory_path`` is the path to the directory that stores the
+            files
+
+        * ``file_pattern`` the naming pattern for the files, that indicates how
+            to match the file to the tile. Thus the file name must contain the tile
+            ID and the place of the tile ID is marked with ``{tile}`` in the pattern.
+            For example, the pattern ``C_{tile}.LAZ`` will match all of ``C_25gn1.LAZ,
+            C_25GN2.LAZ, c_25Gn3.laz``, where ``25gn1, 25gn2, 25gn3`` are tile IDs.
+            Matching is case insensitive.
+
+        * ``priority`` sets the priority for a directory in case you have multiple
+            directories. The lower number indicates higher priority, thus read it as
+            "priority number-one, priority number-two etc.". This setting is
+            useful lots of tiles in multiple versions, where the coverage of the
+            versions partially overlap, and you want to use the tile of the latest
+            version in the overlapping areas. In this case you would set the
+            directory containing the files of the latest version to ``priority: 1``,
+            and thus always the latest version of files will be used for each tile.
+
+        :return: { tile_id: [ path/to/file ] }
+        """
+        if not directory_mapping:
+            return None
+
+        f_idx = {}
+        priority = []
+        file_index = {}
+        # 'priority' is elevation:directories:<directory>:priority
+        def get_priority(d):
+            return d[1]['priority']
+
+        dir_by_priority = sorted(directory_mapping.items(), key=get_priority)
+        # 'file_pattern' is elevation: directories: < directory >: file_pattern
+        for dir, properties in dir_by_priority:
+            idx = {}
+            file_pattern = properties['file_pattern']
+            l = file_pattern[:file_pattern.find('{')]
+            r = file_pattern[file_pattern.find('}') + 1:]
+            regex = '(?<=' + l + ').*(?=' + r + ')'
+            tile_pattern = re.compile(regex, re.IGNORECASE)
+            for item in os.listdir(dir):
+                path = os.path.join(dir, item)
+                if os.path.isfile(path):
+                    file_tile = tile_pattern.search(item)
+                    if file_tile:
+                        tile = file_tile.group(0).lower()
+                        idx[tile] = [path]
+            f_idx[dir] = idx
+        for dir, properties in reversed(dir_by_priority):
+            if len(priority) == 0:
+                file_index = f_idx[dir]
+            else:
+                if priority[-1] == properties['priority']:
+                    tiles = f_idx[dir].keys()
+                    for t in tiles:
+                        try:
+                            file_index[t] += f_idx[dir][t]
+                        except KeyError:
+                            file_index[t] = f_idx[dir][t]
+                else:
+                    f = {**file_index, **f_idx[dir]}
+                    file_index = f
+            priority.append(properties['priority'])
+        log.debug(f"File index: {file_index}")
+        return file_index

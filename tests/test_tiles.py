@@ -5,6 +5,7 @@
 import os
 
 import pytest
+import yaml
 
 from tile_processor import tileconfig, db
 
@@ -52,6 +53,48 @@ def ahn_sch():
                'tile': 'tile',
                'version': 'ahn_version'}
            }
+
+
+@pytest.fixture('module')
+def file_index_ahn(data_dir):
+    dirs = {
+        '25gn1_6': [
+            'ahn/ahn3/c25gn1_6.laz'],
+        '25gn1_15': [
+            'ahn/ahn2/unit_25gn1_15.laz'],
+        '25gn1_9': [
+            'ahn/ahn3/c25gn1_9.laz'],
+        '25gn1_8': [
+            'ahn/ahn2/unit_25gn1_8.laz'],
+        '25gn1_16': [
+            'ahn/ahn2/unit_25gn1_16.laz'],
+        '25gn1_13': [
+            'ahn/ahn3/c25gn1_13.laz'],
+        '25gn1_3': [
+            'ahn/ahn3/c25gn1_3.laz'],
+        '25gn1_10': [
+            'ahn/ahn3/c25gn1_10.laz'],
+        '25gn1_12': [
+            'ahn/ahn2/unit_25gn1_12.laz'],
+        '25gn1_7': [
+            'ahn/ahn3/C25gn1_7.laz'],
+        '25gn1_4': [
+            'ahn/ahn3/c25gn1_4.laz'],
+        '25gn1_14': [
+            'ahn/ahn3/c25gn1_14.laz'],
+        '25gn1_11': [
+            'ahn/ahn2/unit_25gn1_11.laz'],
+        '25gn1_1': [
+            'ahn/ahn3/C25gn1_1.laz'],
+        '25gn1_5': [
+            'ahn/ahn3/c25gn1_5.laz'],
+        '25gn1_2': [
+            'ahn/ahn3/C25gn1_2.laz']
+    }
+    expectation = {}
+    for tile,file in dirs.items():
+        expectation[tile] = [os.path.join(data_dir,file[0])]
+    return expectation
 
 
 class TestInit:
@@ -244,3 +287,27 @@ class TestAHN:
                             version=3,
                             on_border=False)
         assert set(ahn_tiles.to_process) == set(expectation)
+
+
+class TestFileTiles:
+    """Test FileTiles class."""
+
+    def test_filetiles(self, data_dir, file_index_ahn):
+        bag3d_cfg = os.path.join(data_dir, 'bag3d_config.yml')
+        with open(bag3d_cfg, 'r') as fo:
+            f = yaml.load(fo, yaml.FullLoader)
+
+        directory_mapping = {}
+        for mapping in f['elevation']['directories']:
+            dir, value = mapping.popitem()
+            abs_dir = os.path.join(data_dir, dir)
+            directory_mapping[abs_dir] = value
+
+        ft = tileconfig.FileTiles(
+            index_location=None,
+            feature_location=None,
+            directory_mapping=None,
+            output=None
+        )
+        result = ft.create_file_index(directory_mapping)
+        assert result == file_index_ahn
