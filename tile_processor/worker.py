@@ -158,7 +158,7 @@ class ThreedfierWorker:
         """, yaml.FullLoader)
         return yml
 
-    def execute(self, tile, tiles, path_3dfier, monitor_log, monitor_interval,
+    def execute(self, tile, tiles, path_executable, monitor_log, monitor_interval,
                 **ignore) -> bool:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
         ahn_match = tiles.match_feature_tile(feature_tile=tile,
@@ -178,7 +178,7 @@ class ThreedfierWorker:
                 log.exception(f"Error: cannot write {yml_path}")
 
             output_path = tiles.output.add(f"{tile}.csv")
-            command = [path_3dfier, yml_path, "--stat_RMSE",
+            command = [path_executable, yml_path, "--stat_RMSE",
                        "--CSV-BUILDINGS-MULTIPLE",
                        output_path]
             try:
@@ -195,6 +195,39 @@ class ThreedfierWorker:
                     os.remove(yml_path)
                 except Exception as e:
                     log.error(e)
+
+
+class LoD13Worker:
+
+    def execute(self, tile, tiles, path_executable, monitor_log,
+                monitor_interval, **ignore):
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        ahn_file = tiles.file_index[tile][0]
+        # FIXME: hardcoded schema
+        dsn = f"'PG:dbname={tiles.conn.dbname} host={tiles.conn.host} " \
+              f"user={tiles.conn.user} port={tiles.conn.port} " \
+              f"schemas=bag_tiles tables=t_{tile}'"
+        out_lod10 = tiles.output.add(f"{tile}_lod10_p95.gpkg")
+        out_lod13 = tiles.output.add(f"{tile}_lod13_p95.gpkg")
+        command = [
+            path_executable,
+            '--regularise_footprint',
+            '--percentile', '0.95',
+            '--las', ahn_file,
+            '--footprints', dsn,
+            '--output10', out_lod10,
+            '--outputH', out_lod13
+        ]
+        try:
+            success = run_subprocess(
+                command, shell=True, doexec=True,
+                monitor_log=monitor_log, monitor_interval=monitor_interval,
+                tile_id=tile)
+            return success
+        except BaseException as e:
+            log.exception(f"Cannot run {os.path.basename(path_executable)} "
+                          f"on tile {tile}")
+            return False
 
 
 def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
@@ -232,16 +265,19 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
                     break
         stdout, stderr = popen.communicate()
         err = stderr.decode(getpreferredencoding(do_setlocale=True))
+        out = stdout.decode(getpreferredencoding(do_setlocale=True))
         popen.wait()
-        if popen.returncode != 0:
-            log.debug("Process returned with non-zero exit code: %s",
-                      popen.returncode)
+        log.debug(f"stdout: {out}")
+        log.debug(f"stderr: {err}")
+        if popen.returncode != 0 or 'error' in err.lower():
+            log.debug(f"Process returned with non-zero exit "
+                      f"code {popen.returncode}")
             log.error(err)
             return False
         else:
             return True
     else:
-        log.debug("Not executing %s", command)
+        log.debug(f"Not executing {command}")
         return True
 
 
@@ -249,3 +285,4 @@ factory = WorkerFactory()
 factory.register_worker('template', TemplateWorker)
 factory.register_worker('templatedb', TemplateDbWorker)
 factory.register_worker('threedfier', ThreedfierWorker)
+factory.register_worker('lod13', LoD13Worker)

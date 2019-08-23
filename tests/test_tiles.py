@@ -97,6 +97,20 @@ def file_index_ahn(data_dir):
     return expectation
 
 
+@pytest.fixture('module')
+def directory_mapping(data_dir):
+    bag3d_cfg = os.path.join(data_dir, 'bag3d_config.yml')
+    with open(bag3d_cfg, 'r') as fo:
+        f = yaml.load(fo, yaml.FullLoader)
+
+    directory_mapping = {}
+    for mapping in f['elevation']['directories']:
+        dir, value = mapping.popitem()
+        abs_dir = os.path.join(data_dir, dir)
+        directory_mapping[abs_dir] = value
+    return directory_mapping
+
+
 class TestInit:
 
     def test_init(self, bag3d_db):
@@ -209,7 +223,7 @@ class TestAHN:
         result = ahn_tiles._version_not_border()
         assert set(result) == set(expectation)
 
-    def test_configure_v3(self, bag3d_db, ahn_sch):
+    def test_configure_v3(self, bag3d_db, ahn_sch, directory_mapping):
         ahn_tiles = tileconfig.DbTilesAHN(
             conn=bag3d_db,
             index_schema=db.Schema(ahn_sch),
@@ -219,10 +233,11 @@ class TestAHN:
         ahn_tiles.configure(tiles=['all'],
                             extent=None,
                             version=3,
-                            on_border=False)
+                            on_border=False,
+                            directory_mapping=directory_mapping)
         assert set(ahn_tiles.to_process) == set(expectation)
 
-    def test_configure_v2(self, bag3d_db, ahn_sch):
+    def test_configure_v2(self, bag3d_db, ahn_sch, directory_mapping):
         ahn_tiles = tileconfig.DbTilesAHN(
             conn=bag3d_db,
             index_schema=db.Schema(ahn_sch),
@@ -232,10 +247,11 @@ class TestAHN:
         ahn_tiles.configure(tiles=['all'],
                             extent=None,
                             version=2,
-                            on_border=False)
+                            on_border=False,
+                            directory_mapping=directory_mapping)
         assert set(ahn_tiles.to_process) == set(expectation)
 
-    def test_configure_v2_list(self, bag3d_db, ahn_sch):
+    def test_configure_v2_list(self, bag3d_db, ahn_sch, directory_mapping):
         ahn_tiles = tileconfig.DbTilesAHN(
             conn=bag3d_db,
             index_schema=db.Schema(ahn_sch),
@@ -245,10 +261,11 @@ class TestAHN:
         ahn_tiles.configure(tiles=['25gn1_8', '25gn1_11', '25gn1_2', '25gn1_5'],
                             extent=None,
                             version=2,
-                            on_border=False)
+                            on_border=False,
+                            directory_mapping=directory_mapping)
         assert set(ahn_tiles.to_process) == set(expectation)
 
-    def test_configure_border(self, bag3d_db, ahn_sch):
+    def test_configure_border(self, bag3d_db, ahn_sch, directory_mapping):
         ahn_tiles = tileconfig.DbTilesAHN(
             conn=bag3d_db,
             index_schema=db.Schema(ahn_sch),
@@ -258,10 +275,12 @@ class TestAHN:
         ahn_tiles.configure(tiles=['25gn1_10', '25gn1_11', '25gn1_14', '25gn1_15'],
                             extent=None,
                             version=2,
-                            on_border=True)
+                            on_border=True,
+                            directory_mapping=directory_mapping)
         assert set(ahn_tiles.to_process) == set(expectation)
 
-    def test_configure_extent(self, bag3d_db, ahn_sch, polygons):
+    def test_configure_extent(self, bag3d_db, ahn_sch, polygons,
+                              directory_mapping):
         ahn_tiles = tileconfig.DbTilesAHN(
             conn=bag3d_db,
             index_schema=db.Schema(ahn_sch),
@@ -271,34 +290,27 @@ class TestAHN:
         ahn_tiles.configure(tiles=None,
                             extent=polygons['file'],
                             version=2,
-                            on_border=True)
+                            on_border=True,
+                            directory_mapping=directory_mapping)
         assert set(ahn_tiles.to_process) == set(expectation)
 
         expectation = ["25gn1_11"]
         ahn_tiles.configure(tiles=None,
                             extent=polygons['file'],
                             version=2,
-                            on_border=False)
+                            on_border=False,
+                            directory_mapping=directory_mapping)
         assert set(ahn_tiles.to_process) == set(expectation)
 
         expectation = []
         ahn_tiles.configure(tiles=None,
                             extent=polygons['file'],
                             version=3,
-                            on_border=False)
+                            on_border=False,
+                            directory_mapping=directory_mapping)
         assert set(ahn_tiles.to_process) == set(expectation)
 
-    def test_create_file_index(self, data_dir, file_index_ahn):
-        bag3d_cfg = os.path.join(data_dir, 'bag3d_config.yml')
-        with open(bag3d_cfg, 'r') as fo:
-            f = yaml.load(fo, yaml.FullLoader)
-
-        directory_mapping = {}
-        for mapping in f['elevation']['directories']:
-            dir, value = mapping.popitem()
-            abs_dir = os.path.join(data_dir, dir)
-            directory_mapping[abs_dir] = value
-
+    def test_create_file_index(self, directory_mapping, file_index_ahn):
         ft = tileconfig.DbTilesAHN(
             conn=None,
             index_schema=None,

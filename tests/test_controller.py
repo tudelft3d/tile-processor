@@ -66,5 +66,7 @@ class TestThreedfier:
                                                           )
         threedfier_controller.configure(
             tiles=list(tiles),
-            processor_key='threadprocessor')
+            processor_key='threadprocessor',
+            worker_key='threedfier'
+        )
         threedfier_controller.run()

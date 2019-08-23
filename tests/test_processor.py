@@ -7,11 +7,15 @@ import pytest
 import logging
 
 from tile_processor import processor
+from tile_processor import tileconfig, output
 
 @pytest.fixture('module')
 def generate_sample_processor():
     def _generate(worker):
-        tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
+        tiles = tileconfig.DbTiles(conn=None, index_schema=None,
+                                   feature_schema=None)
+        tiles.to_process = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
+        tiles.output = output.DirOutput('/tmp')
         args = {'arg1': 'argument 1', 'arg2': 'argument 2'}
         expectation = {'tile_1': True,
                        'tile_2': True,
@@ -19,12 +23,11 @@ def generate_sample_processor():
                        'tile_4': True,
                        'tile_5': True}
         threadprocessor = processor.factory.create(
-            'threadprocessor', name='test')
+            'threadprocessor', name='test', tiles=tiles)
         threadprocessor.configure(
             threads=3,
             monitor_log=None,
             monitor_interval=5,
-            tiles=tiles,
             worker=worker,
             config=args)
         return threadprocessor, expectation

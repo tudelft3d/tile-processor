@@ -334,10 +334,10 @@ class ThreedfierController:
 
         return cfg
 
-    def configure(self, tiles, processor_key: str):
+    def configure(self, tiles, processor_key: str, worker_key: str):
         """Configure the control logic."""
-        threedfier_worker = worker.factory.create('threedfier')
-        self.cfg['worker'] = threedfier_worker.execute
+        worker_init = worker.factory.create(worker_key)
+        self.cfg['worker'] = worker_init.execute
 
         # Configure the tiles
         # NOTE BD: Using the elevation_index as feature tile index works for
@@ -345,6 +345,7 @@ class ThreedfierController:
         # if that is not the case, then I'll need to partition the AHN tiles
         # as I do with the feature tiles below, and use the AHN tile partitions
         # to partition the feature tiles too.
+        # FIXME: need a way to separately pass the feature_index, elevation_index and all the features/elevation to the tiles
         ahn_2 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
