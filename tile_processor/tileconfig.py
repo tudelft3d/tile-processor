@@ -388,7 +388,11 @@ class DbTilesAHN(DbTiles):
                 `None`, no limitation.
             """
             super().configure(tiles=tiles, extent=extent)
-            if on_border is None and version is None:
+            if version is None and (on_border is None or on_border is False):
+                file_index = self.create_file_index(directory_mapping)
+                self.file_index = {tile: file
+                                   for tile, file in file_index.items()
+                                   if tile in self.to_process}
                 log.info(f"{self.__class__.__name__} configuration done.")
             elif version is not None and on_border is False:
                 versions = self.versions()

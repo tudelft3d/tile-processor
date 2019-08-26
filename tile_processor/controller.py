@@ -396,6 +396,36 @@ class ThreedfierController:
         return results
 
 
+class ThreedfierTINController(ThreedfierController):
+
+    def configure(self, tiles, processor_key: str, worker_key: str):
+        """Configure the control logic."""
+        worker_init = worker.factory.create(worker_key)
+        self.cfg['worker'] = worker_init.execute
+
+        # Configure the tiles
+        # NOTE BD: Ignore AHN versions for now, just testing
+
+        ahn_3 = tileconfig.DbTilesAHN(
+            conn=db.Db(**self.cfg['config']['database']),
+            index_schema=db.Schema(self.cfg['config']['elevation_index']),
+            feature_schema=db.Schema(self.cfg['config']['features'])
+        )
+        ahn_3.configure(tiles=tiles,
+                        directory_mapping=self.cfg['config']['directory_mapping'])
+
+        out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
+        # Set up logic
+        parts = {
+            'AHN3': ahn_3,
+        }
+        for part, ahntiles in parts.items():
+            ahntiles.output = output.DirOutput(out_dir.add(part))
+            proc = processor.factory.create(
+                processor_key, name=part, tiles=ahntiles)
+            self.processors[proc] = part
+        log.info(f"Configured {self.__class__.__name__}")
+
 def add_abspath(dirs: List):
     """Recursively append the absolute path to the paths in a nested list
 
@@ -416,3 +446,4 @@ factory = ControllerFactory()
 factory.register_controller('template', TemplateController)
 factory.register_controller('templatedb', TemplateDbController)
 factory.register_controller('threedfier', ThreedfierController)
+factory.register_controller('threedfier_tin', ThreedfierTINController)

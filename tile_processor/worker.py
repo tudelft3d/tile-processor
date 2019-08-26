@@ -197,6 +197,112 @@ class ThreedfierWorker:
                     log.error(e)
 
 
+class ThreedfierTINWorker:
+
+    def create_yaml(self, tile, feature_tiles, ahn_match):
+        """Create the YAML configuration for 3dfier."""
+        ahn_file = ""
+        ahn_path = feature_tiles.file_index[tile]
+        if len(ahn_path) > 1:
+            for p in ahn_path:
+                ahn_file += "- " + p + "\n" + "      "
+        else:
+            ahn_file += "- " + ahn_path[0]
+        ahn_version = set([ahn_match[tile]])
+        # FIXME: schemas cannot be hardcoded
+        if feature_tiles.conn.password:
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} schemas=tiles tables={bag_tile}'
+            dns = d.format(dbname=feature_tiles.conn.dbname,
+                           host=feature_tiles.conn.host,
+                           port=feature_tiles.conn.port,
+                           user=feature_tiles.conn.user,
+                           pw=feature_tiles.conn.password,
+                           bag_tile=tile)
+        else:
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} schemas=tiles tables={bag_tile}'
+            dns = d.format(dbname=feature_tiles.conn.dbname,
+                           host=feature_tiles.conn.host,
+                           port=feature_tiles.conn.port,
+                           user=feature_tiles.conn.user,
+                           bag_tile=tile)
+
+        if ahn_version == set([2]):
+            las_building = [1]
+        elif ahn_version == set([3]):
+            las_building = [6]
+        elif ahn_version == set([2, 3]):
+            las_building = [1, 6]
+        else:
+            las_building = None
+        uniqueid = feature_tiles.features.field.uniqueid.string
+
+        yml = yaml.load(f"""
+        input_polygons:
+          - datasets:
+              - "{dns}"
+            uniqueid: {uniqueid}
+            lifting: Terrain
+
+        lifting_options:
+          Terrain:
+            simplification: 100
+            simplification_tinsimp: 0.1
+            inner_buffer: 1.0 
+            use_LAS_classes:
+              - 2
+              - 9
+
+        input_elevation:
+          - datasets:
+              {ahn_file}
+            omit_LAS_classes:
+            thinning: 0
+
+        options:
+          building_radius_vertex_elevation: 0.5
+          radius_vertex_elevation: 0.5
+          threshold_jump_edges: 0.5
+        """, yaml.FullLoader)
+        return yml
+
+    def execute(self, tile, tiles, path_executable, monitor_log, monitor_interval,
+                **ignore) -> bool:
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        ahn_match = tiles.match_feature_tile(feature_tile=tile,
+                                             idx_identical=True)
+        if tiles.file_index[tile] is None or len(tiles.file_index[tile]) == 0:
+            log.debug(f"Pointcloud file(s) not available for tile {tile}")
+            return False
+        else:
+            yml = self.create_yaml(tile=tile,
+                                   feature_tiles=tiles,
+                                   ahn_match=ahn_match)
+            yml_path = tiles.output.add(f"{tile}.yml")
+            try:
+                with open(yml_path, "w") as fo:
+                    yaml.dump(yml, fo)
+            except BaseException as e:
+                log.exception(f"Error: cannot write {yml_path}")
+
+            output_path = tiles.output.add(f"{tile}.obj")
+            command = [path_executable, yml_path, "--OBJ",
+                       output_path]
+            try:
+                success = run_subprocess(
+                    command, shell=True, doexec=True,
+                    monitor_log=monitor_log, monitor_interval=monitor_interval,
+                    tile_id=tile)
+                return success
+            except BaseException as e:
+                log.exception("Cannot run 3dfier on tile %s", tile)
+                return False
+            finally:
+                try:
+                    os.remove(yml_path)
+                except Exception as e:
+                    log.error(e)
+
+
 class LoD13Worker:
 
     def execute(self, tile, tiles, path_executable, monitor_log,
@@ -285,4 +391,5 @@ factory = WorkerFactory()
 factory.register_worker('template', TemplateWorker)
 factory.register_worker('templatedb', TemplateDbWorker)
 factory.register_worker('threedfier', ThreedfierWorker)
+factory.register_worker('threedfier_tin', ThreedfierTINWorker)
 factory.register_worker('lod13', LoD13Worker)
