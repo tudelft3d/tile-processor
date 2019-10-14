@@ -20,6 +20,9 @@ import yaml
 
 log = logging.getLogger(__name__)
 
+# TODO BD: might be worth to make a Worker parent class with the run_subprocess
+# method in it. On the other hand, not every Worker might need a subprocess
+# runner
 
 class WorkerFactory:
     """Registers and instantiates an Worker.
@@ -211,19 +214,21 @@ class ThreedfierTINWorker:
         ahn_version = set([ahn_match[tile]])
         # FIXME: schemas cannot be hardcoded
         if feature_tiles.conn.password:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} schemas=tiles tables={bag_tile}'
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} schemas={schema} tables={bag_tile}'
             dns = d.format(dbname=feature_tiles.conn.dbname,
                            host=feature_tiles.conn.host,
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
                            pw=feature_tiles.conn.password,
+                           schema=feature_tiles.features.schema.string,
                            bag_tile=tile)
         else:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} schemas=tiles tables={bag_tile}'
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} schemas={schema} tables={bag_tile}'
             dns = d.format(dbname=feature_tiles.conn.dbname,
                            host=feature_tiles.conn.host,
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
+                           schema=feature_tiles.features.schema.string,
                            bag_tile=tile)
 
         if ahn_version == set([2]):
@@ -358,7 +363,7 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
         cmd = " ".join(command)
         if shell:
             command = cmd
-        log.debug(command)
+        log.debug(f"Tile {tile_id} command: {command}")
         popen = Popen(command, shell=shell, stderr=PIPE, stdout=PIPE)
         if monitor_log is not None:
             while True:
@@ -373,23 +378,23 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
         err = stderr.decode(getpreferredencoding(do_setlocale=True))
         out = stdout.decode(getpreferredencoding(do_setlocale=True))
         popen.wait()
-        log.debug(f"stdout: {out}")
-        log.debug(f"stderr: {err}")
+        log.debug(f"Tile {tile_id} stdout: {out}")
+        log.debug(f"Tile {tile_id} stderr: {err}")
         if popen.returncode != 0 or 'error' in err.lower():
-            log.debug(f"Process returned with non-zero exit "
+            log.error(f"Tile {tile_id} process returned with non-zero exit "
                       f"code {popen.returncode}")
-            log.error(err)
+            log.error(f"Tile {tile_id} err: {err}")
             return False
         else:
             return True
     else:
-        log.debug(f"Not executing {command}")
+        log.debug(f"Tile {tile_id} not executing {command}")
         return True
 
 
 factory = WorkerFactory()
 factory.register_worker('template', TemplateWorker)
 factory.register_worker('templatedb', TemplateDbWorker)
-factory.register_worker('threedfier', ThreedfierWorker)
-factory.register_worker('threedfier_tin', ThreedfierTINWorker)
-factory.register_worker('lod13', LoD13Worker)
+factory.register_worker('3dfier', ThreedfierWorker)
+factory.register_worker('3dfierTIN', ThreedfierTINWorker)
+factory.register_worker('LoD13', LoD13Worker)

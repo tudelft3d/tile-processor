@@ -283,8 +283,8 @@ class TemplateDbController:
         return results
 
 
-class ThreedfierController:
-    """Controller for 3dfier."""
+class AHNController:
+    """Controller for AHN."""
 
     def __init__(self,
                  configuration: TextIO,
@@ -396,7 +396,7 @@ class ThreedfierController:
         return results
 
 
-class ThreedfierTINController(ThreedfierController):
+class AHNTINController(AHNController):
 
     def configure(self, tiles, processor_key: str, worker_key: str):
         """Configure the control logic."""
@@ -445,5 +445,5 @@ def add_abspath(dirs: List):
 factory = ControllerFactory()
 factory.register_controller('template', TemplateController)
 factory.register_controller('templatedb', TemplateDbController)
-factory.register_controller('threedfier', ThreedfierController)
-factory.register_controller('threedfier_tin', ThreedfierTINController)
+factory.register_controller('AHN', AHNController)
+factory.register_controller('AHNtin', AHNTINController)

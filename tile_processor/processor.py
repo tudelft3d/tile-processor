@@ -126,13 +126,5 @@ class ThreadProcessor:
                     log.info(f"Done with tile {tile}")
 
 
-class MultiProcessor:
-    """For multiprocessing"""
-
-    def process(self):
-        raise NotImplementedError(self.__class__.__name__)
-
-
 factory = ParallelProcessorFactory()
 factory.register_processor('threadprocessor', ThreadProcessor)
-factory.register_processor('multiprocessor', MultiProcessor)

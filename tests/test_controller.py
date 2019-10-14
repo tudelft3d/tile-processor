@@ -58,7 +58,7 @@ class TestThreedfier:
         tiles=['all']
         fp = os.path.join(data_dir, 'bag3d_config_balazs.yml')
         configuration = open(fp, 'r', encoding='utf-8')
-        threedfier_controller = controller.factory.create('threedfier',
+        threedfier_controller = controller.factory.create('AHN',
                                                           configuration=configuration,
                                                           threads=threads,
                                                           monitor_log=None,
@@ -67,6 +67,6 @@ class TestThreedfier:
         threedfier_controller.configure(
             tiles=list(tiles),
             processor_key='threadprocessor',
-            worker_key='threedfier'
+            worker_key='3dfier'
         )
         threedfier_controller.run()

@@ -42,9 +42,8 @@ A batch processor for concurrent, tile-based spatial data processing.
       plot-monitor-log  Plot the data that the resource monitor recorded.
       register-schema   Registers a schema for parsing configuration files.
       remove-schema     Removes a configuration schema from the database
-      run-3dfier        Run 3dfier
       run-template      Run a template process on a batch of tiles in parallel.
-
+      run-template-db   Run a template process on a batch of database tiles in...
 
 
 Features

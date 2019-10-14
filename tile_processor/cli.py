@@ -29,7 +29,7 @@ from tile_processor import recorder, controller
 )
 @click.pass_context
 def main(ctx, verbose, quiet, monitor):
-    """Console script for tile_processor."""
+    """Process data sets in tiles."""
     ctx.ensure_object(dict)
     ctx.obj['monitor_log'] = None
     ctx.obj['monitor_interval'] = 5
@@ -116,73 +116,36 @@ def run_template_db(ctx, threads, configuration):
     return 0
 
 
-@click.command()
+@click.command('run')
+@click.argument('controller_key',
+                type=click.Choice(['AHN', 'AHNtin'],
+                                  case_sensitive=False))
+@click.argument('worker_key',
+                type=click.Choice(['3dfier', '3dfierTIN', 'LoD13', 'example'],
+                                  case_sensitive=False))
 @click.argument('configuration', type=click.File('r'))
 @click.argument('tiles', type=str, nargs=-1)
 @click.option('--threads', type=int, default=3,
               help="Max. number of worker instances to start, "
                    "each on a separate thread")
 @click.pass_context
-def run_3dfier(ctx, configuration, tiles, threads):
-    """Run 3dfier"""
-    threedfier_controller = controller.factory.create('threedfier',
+def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
+    """Run a process on multiple threads."""
+    logger = ctx.obj['log']
+    logger.debug(f"Controller key: {controller_key}")
+    logger.debug(f"Worker key: {worker_key}")
+    ctrl = controller.factory.create(controller_key,
         configuration=configuration,
         threads=threads,
         monitor_log=ctx.obj['monitor_log'],
         monitor_interval=ctx.obj['monitor_interval']
     )
-    threedfier_controller.configure(
+    ctrl.configure(
         tiles=list(tiles),
         processor_key='threadprocessor',
-        worker_key='threedfier'
+        worker_key=worker_key
     )
-    threedfier_controller.run()
-
-
-@click.command()
-@click.argument('configuration', type=click.File('r'))
-@click.argument('tiles', type=str, nargs=-1)
-@click.option('--threads', type=int, default=3,
-              help="Max. number of worker instances to start, "
-                   "each on a separate thread")
-@click.pass_context
-def run_3dfier_tin(ctx, configuration, tiles, threads):
-    """Run 3dfier"""
-    threedfier_controller = controller.factory.create('threedfier_tin',
-        configuration=configuration,
-        threads=threads,
-        monitor_log=ctx.obj['monitor_log'],
-        monitor_interval=ctx.obj['monitor_interval']
-    )
-    threedfier_controller.configure(
-        tiles=list(tiles),
-        processor_key='threadprocessor',
-        worker_key='threedfier_tin'
-    )
-    threedfier_controller.run()
-
-
-@click.command()
-@click.argument('configuration', type=click.File('r'))
-@click.argument('tiles', type=str, nargs=-1)
-@click.option('--threads', type=int, default=3,
-              help="Max. number of worker instances to start, "
-                   "each on a separate thread")
-@click.pass_context
-def run_lod13(ctx, configuration, tiles, threads):
-    """Run the LoD1.3 building reconstruction"""
-    threedfier_controller = controller.factory.create('threedfier',
-        configuration=configuration,
-        threads=threads,
-        monitor_log=ctx.obj['monitor_log'],
-        monitor_interval=ctx.obj['monitor_interval']
-    )
-    threedfier_controller.configure(
-        tiles=list(tiles),
-        processor_key='threadprocessor',
-        worker_key='lod13'
-    )
-    threedfier_controller.run()
+    ctrl.run()
 
 
 @click.command()
@@ -234,9 +197,7 @@ def plot_monitor_log(logfile):
 
 main.add_command(run_template)
 main.add_command(run_template_db)
-main.add_command(run_3dfier)
-main.add_command(run_3dfier_tin)
-main.add_command(run_lod13)
+main.add_command(run_cmd)
 main.add_command(register_schema)
 main.add_command(list_schemas)
 main.add_command(remove_schema)

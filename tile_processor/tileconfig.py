@@ -331,7 +331,7 @@ class DbTilesAHN(DbTiles):
                     f = {**file_index, **f_idx[dir]}
                     file_index = f
             priority.append(properties['priority'])
-        log.debug(f"File index: {file_index}")
+        log.debug(f"File index length: {len(file_index)}")
         return file_index
 
     def match_feature_tile(self, feature_tile, idx_identical: bool=True):
