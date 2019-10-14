@@ -51,7 +51,7 @@ class WorkerFactory:
         return worker(**kwargs)
 
 
-class TemplateWorker:
+class ExampleWorker:
     """Runs the template."""
 
     def execute(self, monitor_log, monitor_interval, tile, **ignore) -> bool:
@@ -71,7 +71,7 @@ class TemplateWorker:
         return res
 
 
-class TemplateDbWorker:
+class ExampleDbWorker:
     """Runs the template."""
 
     def execute(self, monitor_log, monitor_interval, tile, **ignore) -> bool:
@@ -83,8 +83,8 @@ class TemplateDbWorker:
         """
         log.debug(f"Running {self.__class__.__name__}:{tile}")
         package_dir = os.path.dirname(os.path.dirname(__file__))
-        exe = os.path.join(package_dir, 'src', 'templatedb_processor.sh')
-        command = ['bash', exe, 'templatedb.output', tile]
+        exe = os.path.join(package_dir, 'src', 'exampledb_processor.sh')
+        command = ['bash', exe, 'exampledb.output', tile]
         res = run_subprocess(command, monitor_log=monitor_log,
                              monitor_interval=monitor_interval, tile_id=tile)
         return res
@@ -393,8 +393,8 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
 
 
 factory = WorkerFactory()
-factory.register_worker('template', TemplateWorker)
-factory.register_worker('templatedb', TemplateDbWorker)
+factory.register_worker('Example', ExampleWorker)
+factory.register_worker('ExampleDb', ExampleDbWorker)
 factory.register_worker('3dfier', ThreedfierWorker)
 factory.register_worker('3dfierTIN', ThreedfierTINWorker)
 factory.register_worker('LoD13', LoD13Worker)

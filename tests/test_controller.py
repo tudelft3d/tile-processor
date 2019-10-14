@@ -25,37 +25,58 @@ class TestConfgurationSchema:
         assert 'test_config_schema.yml' not in files
 
 
-class TestTemplate:
+class TestExample:
 
-    @pytest.mark.skip
-    def test_for_debug(self):
-        tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
-        configuration = {
-            'cfg_3dfier': "config for 3dfier",
-            'cfg_lod10': "config for the LoD1.0 reconstruction"
-        }
-        template_controller = controller.factory.create('template')
-        template_controller.configure(
-            threads=3,
-            monitor_log=None,
-            monitor_interval=5,
+    @pytest.mark.long
+    def test_example(self, data_dir):
+        tiles = ['25gn1_2', '25gn1_7', '25gn1_6']
+        threads=3
+        fp = os.path.join(data_dir, 'exampledb_config.yml')
+        configuration = open(fp, 'r', encoding='utf-8')
+        ctrl = controller.factory.create('Example',
+                                          configuration=configuration,
+                                          threads=threads,
+                                          monitor_log=None,
+                                          monitor_interval=None
+                                          )
+        ctrl.configure(
             tiles=tiles,
             processor_key='threadprocessor',
-            configuration=configuration
+            worker_key='Example'
         )
-        results = template_controller.run()
+        ctrl.run()
+        results = ctrl.run()
         for part, failed in results.items():
             assert len(failed) == 0
 
-    def test_configuration(self):
-        pass
-
+    @pytest.mark.long
+    def test_exampledb(self, data_dir):
+        tiles = ['all',]
+        threads=3
+        fp = os.path.join(data_dir, 'exampledb_config.yml')
+        configuration = open(fp, 'r', encoding='utf-8')
+        ctrl = controller.factory.create('Example',
+                                          configuration=configuration,
+                                          threads=threads,
+                                          monitor_log=None,
+                                          monitor_interval=None
+                                          )
+        ctrl.configure(
+            tiles=tiles,
+            processor_key='threadprocessor',
+            worker_key='ExampleDb'
+        )
+        ctrl.run()
+        results = ctrl.run()
+        for part, failed in results.items():
+            assert len(failed) == 0
 
 class TestThreedfier:
 
+    @pytest.mark.long
     def test_for_debug(self, data_dir):
         threads=3
-        tiles=['all']
+        tiles=['all',]
         fp = os.path.join(data_dir, 'bag3d_config_balazs.yml')
         configuration = open(fp, 'r', encoding='utf-8')
         threedfier_controller = controller.factory.create('AHN',
@@ -65,7 +86,7 @@ class TestThreedfier:
                                                           monitor_interval=None
                                                           )
         threedfier_controller.configure(
-            tiles=list(tiles),
+            tiles=tiles,
             processor_key='threadprocessor',
             worker_key='3dfier'
         )

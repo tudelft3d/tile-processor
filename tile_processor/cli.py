@@ -44,84 +44,13 @@ def main(ctx, verbose, quiet, monitor):
     return 0
 
 
-@click.command()
-@click.option('--threads', type=int, default=3,
-              help="Max. number of worker instances to start, "
-                   "each on a separate thread")
-@click.pass_context
-def run_template(ctx, threads):
-    """Run a template process on a batch of tiles in parallel.
-
-    This command (incl. function calls within) is meant as template for
-    implementing your own command. It will run several TemplateWorker-s, that
-    execute the `./src/simlate_memory_use.sh` script, which allocates a constant
-    amount of RAM (~600Mb) and 'holds' it for 10s, simulating an executable that
-    consumes a larger amount of memory.
-
-    The 'configuration' argument is the path to the YAML configuration file that
-    controls the batch processing.
-    """
-    # This is how can you log from the cli commands in case you dont want to
-    # use click.echo()
-    log = ctx.obj['log']
-    log.debug(f"Threads: {threads}")
-    # Dummy data
-    tiles = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
-    configuration = {
-        'cfg_3dfier': "config for 3dfier",
-        'cfg_lod10': "config for the LoD1.0 reconstruction"
-    }
-    # Create a Controller and run it
-    template_controller = controller.factory.create('template')
-    template_controller.configure(
-        threads=threads,
-        monitor_log=ctx.obj['monitor_log'],
-        monitor_interval=ctx.obj['monitor_interval'],
-        tiles=tiles,
-        processor_key='threadprocessor',
-        configuration=configuration
-    )
-    results = template_controller.run()
-    return 0
-
-
-@click.command()
-@click.argument('configuration', type=click.File('r'))
-@click.option('--threads', type=int, default=3,
-              help="Max. number of worker instances to start, "
-                   "each on a separate thread")
-@click.pass_context
-def run_template_db(ctx, threads, configuration):
-    """Run a template process on a batch of database tiles in parallel.
-
-    In case of this command, the tiles are stored in PostgreSQL.
-
-    The 'configuration' argument is the path to the YAML configuration file that
-    controls the batch processing.
-    """
-    tiles = ['all']
-    # Create a Controller and run it
-    templatedb_controller = controller.factory.create(
-        'templatedb',
-        configuration=configuration,
-        threads=threads,
-        monitor_log=ctx.obj['monitor_log'],
-        monitor_interval=ctx.obj['monitor_interval']
-    )
-    templatedb_controller.configure(
-        processor_key='threadprocessor',
-        tiles=tiles
-    )
-    results = templatedb_controller.run()
-    return 0
-
-
 @click.command('run')
 @click.argument('controller_key',
-                type=click.Choice(['AHN', 'AHNtin'],
+                type=click.Choice(['AHN', 'AHNtin', 'Example'],
                                   case_sensitive=False))
 @click.argument('worker_key',
-                type=click.Choice(['3dfier', '3dfierTIN', 'LoD13', 'example'],
+                type=click.Choice(['3dfier', '3dfierTIN', 'LoD13', 'Example',
+                                   'ExampleDb'],
                                   case_sensitive=False))
 @click.argument('configuration', type=click.File('r'))
 @click.argument('tiles', type=str, nargs=-1)
@@ -146,6 +75,7 @@ def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
         worker_key=worker_key
     )
     ctrl.run()
+    return 0
 
 
 @click.command()
@@ -160,6 +90,7 @@ def register_schema(name, path):
     """
     schema = controller.ConfigurationSchema()
     schema.register(name, path)
+    return 0
 
 
 @click.command()
@@ -176,6 +107,7 @@ def remove_schema(name):
     """Removes a configuration schema from the database"""
     schema = controller.ConfigurationSchema()
     schema.remove(name)
+    return 0
 
 
 @click.command()
@@ -195,8 +127,6 @@ def plot_monitor_log(logfile):
     return 0
 
 
-main.add_command(run_template)
-main.add_command(run_template_db)
 main.add_command(run_cmd)
 main.add_command(register_schema)
 main.add_command(list_schemas)

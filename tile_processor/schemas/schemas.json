@@ -1,1 +1,1 @@
-{"templatedb": "templatedb_config_schema.yml", "threedfier": "bag3d_config_schema.yml"}
+{"threedfier": "bag3d_config_schema.yml", "example": "exampledb_config_schema.yml"}

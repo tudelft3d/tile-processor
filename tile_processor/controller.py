@@ -116,6 +116,9 @@ class ConfigurationSchema:
         Validation is done with `pykwalify
         <https://pykwalify.readthedocs.io/en/master/>`_.
         """
+        if config is None:
+            log.warning(f"config is None")
+            return None
         cfg = yaml.load(config, Loader=yaml.FullLoader)
         if self.schema:
             try:
@@ -154,61 +157,7 @@ class ControllerFactory:
         return controller(**kwargs)
 
 
-class TemplateController:
-    """A sample implementation of a Controller."""
-
-    def __init__(self):
-        self.cfg = {}
-        self.processors = {}
-
-    def configure(self,
-                  threads,
-                  monitor_log,
-                  monitor_interval,
-                  tiles,
-                  processor_key,
-                  configuration):
-        """Configure the controller.
-
-        :param threads:
-        :param monitor_log:
-        :param monitor_interval:
-        :param tiles:
-        :param processor_key:
-        :param configuration:
-        """
-        template_worker = worker.factory.create('template')
-        self.cfg = {
-            'threads': threads,
-            'monitor_log': monitor_log,
-            'monitor_interval': monitor_interval,
-            'worker': template_worker.execute,
-            'tiles': tiles,
-            'config': configuration
-        }
-        for part in ['part_A', 'part_B']:
-            self.processors[
-                processor.factory.create(processor_key, name=part)] = part
-        log.info(f"Configured {self.__class__.__name__}")
-
-    def run(self) -> dict:
-        """Run the Controller
-
-        :return: `(processor.name : [tile ID])`
-            Returns the tile IDs per Processor that failed even after
-            restarts
-        """
-        log.info(f"Running {self.__class__.__name__}")
-        results = {}
-        for proc in self.processors:
-            proc.configure(**self.cfg)
-            res = proc.process()
-            results[proc.name] = res
-        log.info(f"Done {self.__class__.__name__}. Failed: {results}")
-        return results
-
-
-class TemplateDbController:
+class ExampleController:
     """Controller for tiles that are stored in PostgreSQL."""
 
     def __init__(self,
@@ -216,7 +165,7 @@ class TemplateDbController:
                  threads: int,
                  monitor_log: logging.Logger,
                  monitor_interval: int):
-        self.schema = ConfigurationSchema('templatedb')
+        self.schema = ConfigurationSchema('example')
         self.cfg = self.parse_configuration(
             configuration, threads, monitor_log, monitor_interval
         )
@@ -248,21 +197,38 @@ class TemplateDbController:
         cfg['config'] = cfg_stream
         return cfg
 
-    def configure(self,
-                  tiles,
-                  processor_key):
+    def configure(self, tiles, processor_key: str, worker_key: str):
         """Configure the controller."""
-        template_worker = worker.factory.create('templatedb')
-        dbtiles = tileconfig.DbTiles(
-            conn=db.Db(**self.cfg['config']['database']),
-            index_schema=db.Schema(self.cfg['config']['features_index']),
-            feature_schema=db.Schema(self.cfg['config']['features'])
-        )
-        dbtiles.configure(tiles=tiles)
-        self.cfg['worker'] = template_worker.execute
-        for part in ['part_A']:
+        worker_init = worker.factory.create(worker_key)
+        self.cfg['worker'] = worker_init.execute
+
+        if worker_key == 'Example':
+            tilescfg = tileconfig.Tiles()
+            tilescfg.configure(tiles=tiles)
+            out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
+            # Set up logic
+            parts = {
+                'part_A': tilescfg,
+                'part_B': tilescfg
+            }
+        else:
+            # For the ExampleDb worker
+            tilescfg = tileconfig.DbTiles(
+                conn=db.Db(**self.cfg['config']['database']),
+                index_schema=db.Schema(self.cfg['config']['features_index']),
+                feature_schema=db.Schema(self.cfg['config']['features'])
+            )
+            tilescfg.configure(tiles=tiles)
+            out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
+            # Set up logic
+            parts = {
+                'part_A': tilescfg,
+            }
+
+        for part, _tilescfg in parts.items():
+            _tilescfg.output = output.DirOutput(out_dir.add(part))
             proc = processor.factory.create(
-                processor_key, name=part, tiles=dbtiles)
+                processor_key, name=part, tiles=_tilescfg)
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
@@ -384,7 +350,7 @@ class AHNController:
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
-    def run(self):
+    def run(self) -> dict:
         """Run the processors"""
         log.info(f"Running {self.__class__.__name__}")
         results = {}
@@ -443,7 +409,7 @@ def add_abspath(dirs: List):
 
 
 factory = ControllerFactory()
-factory.register_controller('template', TemplateController)
-factory.register_controller('templatedb', TemplateDbController)
+factory.register_controller('Example', ExampleController)
+# factory.register_controller('ExampleDb', ExampleDbController)
 factory.register_controller('AHN', AHNController)
 factory.register_controller('AHNtin', AHNTINController)
