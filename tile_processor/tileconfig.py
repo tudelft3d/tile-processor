@@ -7,10 +7,11 @@ import logging
 import os
 import re
 from random import shuffle
-from typing import List, Tuple
+from typing import List, Tuple, Union
 
 import fiona
 from psycopg2 import sql
+from psycopg2 import Error as pgError
 from shapely import geos
 from shapely.geometry import shape, Polygon
 
@@ -196,6 +197,7 @@ class DbTilesAHN(DbTiles):
                  feature_schema: db.Schema, output=None):
         super().__init__(conn, index_schema, feature_schema, output)
         self.file_index = None
+        self.feature_views = None
 
     def versions(self) -> List[int]:
         query_params = {
@@ -381,6 +383,43 @@ class DbTilesAHN(DbTiles):
         return tiles
 
 
+    def create_tile_view(self, feature_tile) -> Union[None, str]:
+        """Create a temporary view with a single tile polygon for GDAL to
+        connect to.
+
+        Otherwise it would be required to manually create a view or table for
+        each tile polygon.
+
+        .. note:: The rationale of this method is to keep the feature tiles in
+            single table instead of having to manually create a table/view for
+            each tile separately. Especially in case of TINs where the tile
+            polygon IS the feature itself.
+
+        :returns: The schema and view name of the created view
+        """
+        # FIXME: this should use the features_index, instead of features. This
+        #  only works for the TIN tiles where the tile polygon IS the feature
+        #  itself
+        view = "_" + feature_tile
+        query_params = {
+            'view': sql.Identifier(view),
+            'feature_table': self.features.schema + self.features.table,
+            'uniqueid': self.features.field.uniqueid.sqlid,
+            'tile': sql.Literal(feature_tile)
+        }
+        query = sql.SQL("""
+        CREATE OR REPLACE VIEW {view}
+        AS SELECT * FROM {feature_table} WHERE {uniqueid}={tile};
+        """).format(**query_params)
+        log.debug(self.conn.print_query(query))
+        try:
+            self.conn.send_query(query)
+        except pgError as e:
+            log.error(f"{e.pgcode}\t{e.pgerror}")
+            return None
+        return view
+
+
     def configure(self, tiles: List[str] = None, extent=None,
                       version: int=None, on_border: bool=False,
                       directory_mapping: dict=None):
@@ -400,9 +439,15 @@ class DbTilesAHN(DbTiles):
             super().configure(tiles=tiles, extent=extent)
             if version is None and (on_border is None or on_border is False):
                 file_index = self.create_file_index(directory_mapping)
-                self.file_index = {tile: file
-                                   for tile, file in file_index.items()
-                                   if tile in self.to_process}
+                # self.file_index = {tile: file
+                #                    for tile, file in file_index.items()
+                #                    if tile in self.to_process}
+                self.file_index = dict()
+                self.feature_views = dict()
+                for tile, file in file_index.items():
+                    if tile in self.to_process:
+                        self.file_index[tile] = file
+                        self.feature_views[tile] = self.create_tile_view(tile)
                 log.info(f"{self.__class__.__name__} configuration done.")
             elif version is not None and on_border is False:
                 versions = self.versions()
@@ -414,18 +459,31 @@ class DbTilesAHN(DbTiles):
                     process_set = set(self.to_process)
                     self.to_process = list(version_set.intersection(process_set))
                     file_index = self.create_file_index(directory_mapping)
-                    self.file_index = {tile: file
-                                       for tile, file in file_index.items()
-                                       if tile in self.to_process}
+                    # self.file_index = {tile: file
+                    #                    for tile, file in file_index.items()
+                    #                    if tile in self.to_process}
+                    self.file_index = dict()
+                    self.feature_views = dict()
+                    for tile, file in file_index.items():
+                        if tile in self.to_process:
+                            self.file_index[tile] = file
+                            self.feature_views[tile] = self.create_tile_view(
+                                tile)
                     log.info(f"{self.__class__.__name__} configuration done.")
             elif on_border:
                 border_set = set(self._version_border())
                 process_set = set(self.to_process)
                 self.to_process = list(border_set.intersection(process_set))
                 file_index = self.create_file_index(directory_mapping)
-                self.file_index = {tile: file
-                                   for tile, file in file_index.items()
-                                   if tile in self.to_process}
+                # self.file_index = {tile: file
+                #                    for tile, file in file_index.items()
+                #                    if tile in self.to_process}
+                self.file_index = dict()
+                self.feature_views = dict()
+                for tile, file in file_index.items():
+                    if tile in self.to_process:
+                        self.file_index[tile] = file
+                        self.feature_views[tile] = self.create_tile_view(tile)
                 log.info(f"{self.__class__.__name__} configuration done.")
             else:
                 raise AttributeError(

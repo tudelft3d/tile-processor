@@ -206,6 +206,7 @@ class ThreedfierTINWorker:
         """Create the YAML configuration for 3dfier."""
         ahn_file = ""
         ahn_path = feature_tiles.file_index[tile]
+        feature_view = feature_tiles.feature_views[tile]
         if len(ahn_path) > 1:
             for p in ahn_path:
                 ahn_file += "- " + p + "\n" + "      "
@@ -214,22 +215,20 @@ class ThreedfierTINWorker:
         ahn_version = set([ahn_match[tile]])
         # FIXME: schemas cannot be hardcoded
         if feature_tiles.conn.password:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} schemas={schema} tables={bag_tile}'
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} tables={table}'
             dns = d.format(dbname=feature_tiles.conn.dbname,
                            host=feature_tiles.conn.host,
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
                            pw=feature_tiles.conn.password,
-                           schema=feature_tiles.features.schema.string,
-                           bag_tile=tile)
+                           table=feature_view)
         else:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} schemas={schema} tables={bag_tile}'
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} tables={table}'
             dns = d.format(dbname=feature_tiles.conn.dbname,
                            host=feature_tiles.conn.host,
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
-                           schema=feature_tiles.features.schema.string,
-                           bag_tile=tile)
+                           table=feature_view)
 
         if ahn_version == set([2]):
             las_building = [1]
@@ -250,9 +249,9 @@ class ThreedfierTINWorker:
 
         lifting_options:
           Terrain:
-            simplification: 100
+            simplification: 2
             simplification_tinsimp: 0.1
-            inner_buffer: 1.0 
+            inner_buffer: 1.0
             use_LAS_classes:
               - 2
               - 9
@@ -283,14 +282,15 @@ class ThreedfierTINWorker:
                                    feature_tiles=tiles,
                                    ahn_match=ahn_match)
             yml_path = tiles.output.add(f"{tile}.yml")
+            log.debug(f"{yml_path}\n{yml}")
             try:
                 with open(yml_path, "w") as fo:
                     yaml.dump(yml, fo)
             except BaseException as e:
                 log.exception(f"Error: cannot write {yml_path}")
 
-            output_path = tiles.output.add(f"{tile}.obj")
-            command = [path_executable, yml_path, "--OBJ",
+            output_path = tiles.output.add(f"{tile}.shp")
+            command = [path_executable, yml_path, "--Shapefile",
                        output_path]
             try:
                 success = run_subprocess(
