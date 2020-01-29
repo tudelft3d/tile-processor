@@ -52,12 +52,11 @@ class ConfigurationSchema:
                 try:
                     src = os.path.join(self.dir, s[name])
                 except KeyError:
-                    secho(
-                        name,
-                        message=f"The configuration schema '{name}' is not "
-                                f"registered, but it is expected by the Controller. You can register the schema with the "
-                                f"'register-schema' command.",
-                        color='red'
+                    secho(message=f"The configuration schema '{name}' is not "
+                                  f"registered, but it is expected by the "
+                                  f"Controller. You can register the schema "
+                                  f"with the 'register-schema' command.",
+                          fg='red'
                     )
                     return None
             try:
