@@ -270,7 +270,8 @@ class ThreedfierTINWorker:
         """, yaml.FullLoader)
         return yml
 
-    def execute(self, tile, tiles, tinsimp, path_executable, monitor_log,
+    def execute(self, tile, tiles, tinsimp, out_format, out_format_ext,
+                path_executable, monitor_log,
                 monitor_interval,
                 **ignore) -> bool:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
@@ -292,8 +293,8 @@ class ThreedfierTINWorker:
             except BaseException as e:
                 log.exception(f"Error: cannot write {yml_path}")
 
-            output_path = tiles.output.add(f"{tile}.gpkg")
-            command = [path_executable, yml_path, "--GeoPackage",
+            output_path = tiles.output.add(f"{tile}.{out_format_ext}")
+            command = [path_executable, yml_path, out_format,
                        output_path]
             try:
                 success = run_subprocess(
