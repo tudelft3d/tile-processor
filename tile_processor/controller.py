@@ -52,12 +52,14 @@ class ConfigurationSchema:
                 try:
                     src = os.path.join(self.dir, s[name])
                 except KeyError:
-                    raise exceptions.NoSuchOption(
+                    secho(
                         name,
                         message=f"The configuration schema '{name}' is not "
-                                f"registered. Register it with the "
-                                f"'register-schema' command."
+                                f"registered, but it is expected by the Controller. You can register the schema with the "
+                                f"'register-schema' command.",
+                        color='red'
                     )
+                    return None
             try:
                 with open(src, 'r') as cfgp:
                     return yaml.load(cfgp, Loader=yaml.FullLoader)
