@@ -250,9 +250,8 @@ class ThreedfierTINWorker:
 
         lifting_options:
           Terrain:
-            simplification: 2
             simplification_tinsimp: {tinsimp}
-            inner_buffer: 1.0
+            inner_buffer: 0.1
             use_LAS_classes:
               - 2
               - 9
