@@ -254,7 +254,6 @@ class ThreedfierTINWorker:
             inner_buffer: 0.1
             use_LAS_classes:
               - 2
-              - 9
 
         input_elevation:
           - datasets:
