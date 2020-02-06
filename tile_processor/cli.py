@@ -49,7 +49,7 @@ def main(ctx, verbose, quiet, monitor):
                 type=click.Choice(['AHN', 'AHNtin', 'Example'],
                                   case_sensitive=False))
 @click.argument('worker_key',
-                type=click.Choice(['3dfier', '3dfierTIN', 'LoD13', 'Example',
+                type=click.Choice(['3dfier', '3dfierTIN', 'Geoflow', 'LoD13', 'Example',
                                    'ExampleDb'],
                                   case_sensitive=False))
 @click.argument('configuration', type=click.File('r'))

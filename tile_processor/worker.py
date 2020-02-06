@@ -14,6 +14,7 @@ from locale import getpreferredencoding
 from subprocess import PIPE
 from time import sleep
 from typing import List
+import json
 
 from psutil import Popen
 import yaml
@@ -342,6 +343,83 @@ class LoD13Worker:
                           f"on tile {tile}")
             return False
 
+class GeoflowWorker:
+
+    def create_json(self, tile, feature_tiles, ahn_match, path_flowchart):
+        ahn_file = ""
+        ahn_path = feature_tiles.file_index[tile]
+        if len(ahn_path) > 1:
+            for p in ahn_path:
+                ahn_file += "- " + p + "\n" + "      "
+        else:
+            ahn_file += "- " + ahn_path[0]
+        ahn_version = {ahn_match[tile]}
+
+        if feature_tiles.conn.password:
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} active_schema={schema_tiles} tables={bag_tile}'
+            dns = d.format(dbname=feature_tiles.conn.dbname,
+                           host=feature_tiles.conn.host,
+                           port=feature_tiles.conn.port,
+                           user=feature_tiles.conn.user,
+                           pw=feature_tiles.conn.password,
+                           schema_tiles=feature_tiles.features.schema.string,
+                           bag_tile=feature_tiles.features.table.string)
+        else:
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} active_schema={schema_tiles} tables={bag_tile}'
+            dns = d.format(dbname=feature_tiles.conn.dbname,
+                           host=feature_tiles.conn.host,
+                           port=feature_tiles.conn.port,
+                           user=feature_tiles.conn.user,
+                           schema_tiles=feature_tiles.features.schema.string,
+                           bag_tile=feature_tiles.features.table.string)
+
+        if ahn_version == {2}:
+            las_building = [1]
+        elif ahn_version == {3}:
+            las_building = [6]
+        elif ahn_version == {2, 3}:
+            las_building = [1, 6]
+        else:
+            las_building = None
+        uniqueid = feature_tiles.features.field.uniqueid.string
+
+        with open(path_flowchart, 'r') as fo:
+            j = json.load(fo)
+        j['nodes']['OGRLoader']['parameters']['filepath'] = dns
+        j['nodes']['OGRWriter']['parameters']['layername'] = tile
+        return j
+
+    def execute(self, tile, tiles, path_executable, path_flowchart, monitor_log,
+                monitor_interval, **ignore):
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        ahn_match = tiles.match_feature_tile(feature_tile=tile,
+                                             idx_identical=True)
+        ahn_file = tiles.file_index[tile][0]
+        _json = self.create_json(tile=tile, feature_tiles=tiles,
+                                ahn_match=ahn_match,
+                                 path_flowchart=path_flowchart)
+        json_path = tiles.output.add(f"{tile}.json")
+        log.debug(f"{json_path}\n{_json}")
+        try:
+            with open(json_path, "w") as fo:
+                json.dump(_json, fo)
+        except BaseException as e:
+            log.exception(f"Error: cannot write {json_path}")
+        command = [
+            path_executable,
+            '-f',
+            json_path
+        ]
+        try:
+            success = run_subprocess(
+                command, shell=True, doexec=True,
+                monitor_log=monitor_log, monitor_interval=monitor_interval,
+                tile_id=tile)
+            return success
+        except BaseException as e:
+            log.exception(f"Cannot run {os.path.basename(path_executable)} "
+                          f"on tile {tile}")
+            return False
 
 def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
                    monitor_log: logging.Logger = None,
@@ -400,3 +478,4 @@ factory.register_worker('ExampleDb', ExampleDbWorker)
 factory.register_worker('3dfier', ThreedfierWorker)
 factory.register_worker('3dfierTIN', ThreedfierTINWorker)
 factory.register_worker('LoD13', LoD13Worker)
+factory.register_worker('Geoflow', GeoflowWorker)
