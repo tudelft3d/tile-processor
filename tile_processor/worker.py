@@ -468,7 +468,8 @@ def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
         if popen.returncode != 0 or 'error' in err.lower():
             log.error(f"Tile {tile_id} process returned with non-zero exit "
                       f"code {popen.returncode}")
-            log.error(f"Tile {tile_id} err: {err}")
+            log.error(f"Tile {tile_id} err: \n{out}")
+            log.error(f"Tile {tile_id} err: \n{err}")
             return False
         else:
             return True
