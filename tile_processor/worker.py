@@ -420,6 +420,11 @@ class GeoflowWorker:
             log.exception(f"Cannot run {os.path.basename(path_executable)} "
                           f"on tile {tile}")
             return False
+        finally:
+            try:
+                os.remove(json_path)
+            except Exception as e:
+                log.error(e)
 
 def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
                    monitor_log: logging.Logger = None,
