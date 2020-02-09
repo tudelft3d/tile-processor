@@ -348,30 +348,32 @@ class GeoflowWorker:
     def create_json(self, tile, feature_tiles, ahn_match, path_flowchart):
         ahn_file = ""
         ahn_path = feature_tiles.file_index[tile]
+        feature_view = feature_tiles.feature_views[tile]
+
         if len(ahn_path) > 1:
             for p in ahn_path:
                 ahn_file += "- " + p + "\n" + "      "
         else:
             ahn_file += "- " + ahn_path[0]
         ahn_version = {ahn_match[tile]}
-
+        # FIXME: feature_view does not work, so I had to hack it with hardcoded stuff
         if feature_tiles.conn.password:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} active_schema={schema_tiles} tables={bag_tile}'
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} active_schema={schema_tiles} tables={tile}'
             dns = d.format(dbname=feature_tiles.conn.dbname,
                            host=feature_tiles.conn.host,
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
                            pw=feature_tiles.conn.password,
-                           schema_tiles=feature_tiles.features.schema.string,
-                           bag_tile=feature_tiles.features.table.string)
+                           schema_tiles=feature_tiles.features_index.schema.string,
+                           tile='t'+feature_view)
         else:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} active_schema={schema_tiles} tables={bag_tile}'
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} active_schema={schema_tiles} tables={tile}'
             dns = d.format(dbname=feature_tiles.conn.dbname,
                            host=feature_tiles.conn.host,
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
-                           schema_tiles=feature_tiles.features.schema.string,
-                           bag_tile=feature_tiles.features.table.string)
+                           schema_tiles=feature_tiles.features_index.schema.string,
+                           tile='t'+feature_view)
 
         if ahn_version == {2}:
             las_building = [1]

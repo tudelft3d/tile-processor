@@ -316,26 +316,34 @@ class AHNController:
         ahn_2 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
-            feature_schema=db.Schema(self.cfg['config']['features'])
+            feature_schema=db.Schema(self.cfg['config']['features']),
+            features_index_schema = db.Schema(self.cfg['config']['features_index'])
         )
         ahn_2.configure(tiles=tiles, version=2,
-                        directory_mapping=self.cfg['config']['directory_mapping'])
+                        directory_mapping=self.cfg['config']['directory_mapping'],
+                        tin=False)
 
         ahn_3 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
-            feature_schema=db.Schema(self.cfg['config']['features'])
+            feature_schema=db.Schema(self.cfg['config']['features']),
+            features_index_schema=db.Schema(
+                self.cfg['config']['features_index'])
         )
         ahn_3.configure(tiles=tiles, version=3,
-                        directory_mapping=self.cfg['config']['directory_mapping'])
+                        directory_mapping=self.cfg['config']['directory_mapping'],
+                        tin=False)
 
         ahn_border = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
-            feature_schema=db.Schema(self.cfg['config']['features'])
+            feature_schema=db.Schema(self.cfg['config']['features']),
+            features_index_schema=db.Schema(
+                self.cfg['config']['features_index'])
         )
         ahn_border.configure(tiles=tiles, on_border=True,
-                             directory_mapping=self.cfg['config']['directory_mapping'])
+                             directory_mapping=self.cfg['config']['directory_mapping'],
+                             tin=False)
 
         out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
         # Set up logic
@@ -376,10 +384,12 @@ class AHNTINController(AHNController):
         ahn_3 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
-            feature_schema=db.Schema(self.cfg['config']['features'])
+            feature_schema=db.Schema(self.cfg['config']['features']),
+            features_index_schema=None
         )
         ahn_3.configure(tiles=tiles,
-                        directory_mapping=self.cfg['config']['directory_mapping'])
+                        directory_mapping=self.cfg['config']['directory_mapping'],
+                        tin=True)
 
         out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
         # Set up logic

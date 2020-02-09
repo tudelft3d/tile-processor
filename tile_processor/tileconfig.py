@@ -194,8 +194,10 @@ class DbTilesAHN(DbTiles):
     is stored in files on the file system."""
 
     def __init__(self, conn: db.Db, index_schema: db.Schema,
-                 feature_schema: db.Schema, output=None):
+                 feature_schema: db.Schema, features_index_schema: db.Schema,
+                 output=None):
         super().__init__(conn, index_schema, feature_schema, output)
+        self.features_index = features_index_schema
         self.file_index = None
         self.feature_views = None
 
@@ -383,7 +385,7 @@ class DbTilesAHN(DbTiles):
         return tiles
 
 
-    def create_tile_view(self, feature_tile) -> Union[None, str]:
+    def create_tile_view(self, feature_tile, tin=False) -> Union[None, str]:
         """Create a temporary view with a single tile polygon for GDAL to
         connect to.
 
@@ -399,19 +401,39 @@ class DbTilesAHN(DbTiles):
         """
         # FIXME: this should use the features_index, instead of features. This
         #  only works for the TIN tiles where the tile polygon IS the feature
-        #  itself
+        #  itself.
+        # FIXME: this should be done better than passing tin-switch as a parameter
         view = "_" + feature_tile
-        query_params = {
-            'view': sql.Identifier(view),
-            'feature_table': self.features.schema + self.features.table,
-            'uniqueid': self.features.field.uniqueid.sqlid,
-            'tile': sql.Literal(feature_tile)
-        }
-        query = sql.SQL("""
-        CREATE OR REPLACE VIEW {view}
-        AS SELECT * FROM {feature_table} WHERE {uniqueid}={tile};
-        """).format(**query_params)
-        log.debug(self.conn.print_query(query))
+        if tin:
+            query_params = {
+                'view': sql.Identifier(view),
+                'feature_table': self.features.schema + self.features.table,
+                'uniqueid': self.features.field.uniqueid.sqlid,
+                'tile': sql.Literal(feature_tile)
+            }
+            query = sql.SQL("""
+            CREATE OR REPLACE VIEW {view}
+            AS SELECT * FROM {feature_table} WHERE {uniqueid}={tile};
+            """).format(**query_params)
+            log.debug(self.conn.print_query(query))
+        else:
+            query_params = {
+                'view': sql.Identifier(self.features_index.schema.string, view),
+                'features': self.features.schema + self.features.table,
+                'f_pk': self.features.field.pk.sqlid,
+                'features_index': self.features_index.schema + self.features_index.table,
+                'fi_pk': self.features_index.field.pk.sqlid,
+                'fi_tileid': self.features_index.field.tile.sqlid,
+                'tile': sql.Literal(feature_tile)
+            }
+            query = sql.SQL("""
+            CREATE OR REPLACE VIEW {view}
+            AS SELECT f.* 
+            FROM {features} f 
+            JOIN {features_index} fi ON f.{f_pk} = fi.{fi_pk} 
+            WHERE fi.{fi_tileid}={tile};
+            """).format(**query_params)
+            log.debug(self.conn.print_query(query))
         try:
             self.conn.send_query(query)
         except pgError as e:
@@ -422,7 +444,8 @@ class DbTilesAHN(DbTiles):
 
     def configure(self, tiles: List[str] = None, extent=None,
                       version: int=None, on_border: bool=False,
-                      directory_mapping: dict=None):
+                      directory_mapping: dict=None, tin: bool=False
+                  ):
             """Prepare the AHN tiles for processing.
 
             First `tiles` and `extent` are evaluated, then `version` and
@@ -447,7 +470,8 @@ class DbTilesAHN(DbTiles):
                 for tile, file in file_index.items():
                     if tile in self.to_process:
                         self.file_index[tile] = file
-                        self.feature_views[tile] = self.create_tile_view(tile)
+                        self.feature_views[tile] = self.create_tile_view(tile,
+                                                                         tin=tin)
                 log.info(f"{self.__class__.__name__} configuration done.")
             elif version is not None and on_border is False:
                 versions = self.versions()
@@ -468,7 +492,7 @@ class DbTilesAHN(DbTiles):
                         if tile in self.to_process:
                             self.file_index[tile] = file
                             self.feature_views[tile] = self.create_tile_view(
-                                tile)
+                                tile, tin=tin)
                     log.info(f"{self.__class__.__name__} configuration done.")
             elif on_border:
                 border_set = set(self._version_border())
@@ -483,7 +507,8 @@ class DbTilesAHN(DbTiles):
                 for tile, file in file_index.items():
                     if tile in self.to_process:
                         self.file_index[tile] = file
-                        self.feature_views[tile] = self.create_tile_view(tile)
+                        self.feature_views[tile] = self.create_tile_view(tile,
+                                                                         tin=tin)
                 log.info(f"{self.__class__.__name__} configuration done.")
             else:
                 raise AttributeError(
