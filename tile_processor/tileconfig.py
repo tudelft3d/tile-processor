@@ -348,8 +348,16 @@ class DbTilesAHN(DbTiles):
         log.debug(f"File index length: {len(file_index)}")
         return file_index
 
-    def match_feature_tile(self, feature_tile, idx_identical: bool=True):
-        """Find the elevation tiles that match the footprint tile."""
+    def match_feature_tile(self, features: DbTiles,
+                           feature_tile: str, idx_identical: bool=True):
+        """Find the elevation tiles that match the footprint tile.
+
+        :param features:
+        :param feature_tile: ID of the feature tile
+        :param idx_identical: If **True**, elevation and feature tiles are
+            matched on IDs without any spatial comparison. If **False**,
+            elevation and feature tiles are matched with an intersection check.
+        """
         if idx_identical:
             query_params = {
                 'index_': self.index.schema + self.index.table,

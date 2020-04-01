@@ -13,11 +13,13 @@ import logging
 from locale import getpreferredencoding
 from subprocess import PIPE
 from time import sleep
-from typing import List
+from typing import Sequence
 import json
 
 from psutil import Popen
 import yaml
+
+from tileconfig import DbTilesAHN
 
 log = logging.getLogger(__name__)
 
@@ -343,63 +345,35 @@ class LoD13Worker:
                           f"on tile {tile}")
             return False
 
-class GeoflowWorker:
 
-    def create_json(self, tile, feature_tiles, ahn_match, path_flowchart):
-        ahn_file = ""
-        ahn_path = feature_tiles.file_index[tile]
-        feature_view = feature_tiles.feature_views[tile]
+class Geoflow:
 
-        if len(ahn_path) > 1:
-            for p in ahn_path:
-                ahn_file += "- " + p + "\n" + "      "
-        else:
-            ahn_file += "- " + ahn_path[0]
-        ahn_version = {ahn_match[tile]}
-        # FIXME: feature_view does not work, so I had to hack it with hardcoded stuff
-        if feature_tiles.conn.password:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} active_schema={schema_tiles} tables={tile}'
-            dns = d.format(dbname=feature_tiles.conn.dbname,
-                           host=feature_tiles.conn.host,
-                           port=feature_tiles.conn.port,
-                           user=feature_tiles.conn.user,
-                           pw=feature_tiles.conn.password,
-                           schema_tiles=feature_tiles.features_index.schema.string,
-                           tile='t'+feature_view)
-        else:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} active_schema={schema_tiles} tables={tile}'
-            dns = d.format(dbname=feature_tiles.conn.dbname,
-                           host=feature_tiles.conn.host,
-                           port=feature_tiles.conn.port,
-                           user=feature_tiles.conn.user,
-                           schema_tiles=feature_tiles.features_index.schema.string,
-                           tile='t'+feature_view)
+    def create_configuration(self, *args, **kwargs):
+        """Create a tile-specific configuration file."""
 
-        if ahn_version == {2}:
-            las_building = [1]
-        elif ahn_version == {3}:
-            las_building = [6]
-        elif ahn_version == {2, 3}:
-            las_building = [1, 6]
-        else:
-            las_building = None
-        uniqueid = feature_tiles.features.field.uniqueid.string
+    def execute(self, tile: str, tiles: DbTilesAHN, path_executable: str,
+                path_flowchart: str,
+                path_config: str, monitor_log: logging.Logger,
+                monitor_interval: int,
+                **ignore) -> bool:
+        """Execute Geoflow.
 
-        with open(path_flowchart, 'r') as fo:
-            j = json.load(fo)
-        j['nodes']['OGRLoader']['parameters']['filepath'] = dns
-        j['nodes']['OGRWriter']['parameters']['layername'] = tile
-        return j
-
-    def execute(self, tile, tiles, path_executable, path_flowchart, monitor_log,
-                monitor_interval, **ignore):
+        :param tile: Tile ID to process
+        :param tiles: Feature tiles configuration object
+        :param path_executable: Absolute path to the Geoflow exe
+        :param path_flowchart: Absolute path to the Geoflow flowchart
+        :param path_config: Absolute path to the Geoflow configuration file
+        :param monitor_log:
+        :param monitor_interval:
+        :return: Success or Failiure
+        """
         log.debug(f"Running {self.__class__.__name__}:{tile}")
-        ahn_match = tiles.match_feature_tile(feature_tile=tile,
-                                             idx_identical=True)
+        pc_match = tiles.match_feature_tile(feature_tile=tile,
+                                            idx_identical=False)
         ahn_file = tiles.file_index[tile][0]
-        _json = self.create_json(tile=tile, feature_tiles=tiles,
-                                ahn_match=ahn_match,
-                                 path_flowchart=path_flowchart)
+        _json = self.create_configuration(
+            tile=tile, feature_tiles=tiles, pc_match=pc_match,
+            path_config=path_config)
         json_path = tiles.output.add(f"{tile}.json")
         log.debug(f"{json_path}\n{_json}")
         try:
@@ -409,8 +383,8 @@ class GeoflowWorker:
             log.exception(f"Error: cannot write {json_path}")
         command = [
             path_executable,
-            '-f',
-            json_path
+            '-f', path_flowchart,
+            '-c', path_config
         ]
         try:
             success = run_subprocess(
@@ -428,9 +402,48 @@ class GeoflowWorker:
             except Exception as e:
                 log.error(e)
 
-def run_subprocess(command: List[str], shell: bool = False, doexec: bool = True,
+
+class GeoflowWorker(Geoflow):
+
+    def create_configuration(self,
+                             tile: str=None,
+                             feature_tiles: DbTilesAHN=None,
+                             path_config: str=None,
+                             pc_match: Sequence[str]=None):
+        output_prefix = f'{tile}_'
+        input_pc_files = pc_match
+        feature_view = feature_tiles.feature_views[tile]
+        if feature_tiles.conn.password:
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} active_schema={schema_tiles} tables={tile}'
+            dns = d.format(dbname=feature_tiles.conn.dbname,
+                           host=feature_tiles.conn.host,
+                           port=feature_tiles.conn.port,
+                           user=feature_tiles.conn.user,
+                           pw=feature_tiles.conn.password,
+                           schema_tiles=feature_tiles.features_index.schema.string,
+                           tile='t' + feature_view)
+        else:
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} active_schema={schema_tiles} tables={tile}'
+            dns = d.format(dbname=feature_tiles.conn.dbname,
+                           host=feature_tiles.conn.host,
+                           port=feature_tiles.conn.port,
+                           user=feature_tiles.conn.user,
+                           schema_tiles=feature_tiles.features_index.schema.string,
+                           tile='t' + feature_view)
+
+        with open(path_config, 'r') as fo:
+            j = json.load(fo)
+        j['nodes']['OGRLoader']['parameters']['filepath'] = dns
+        j['nodes']['OGRWriter']['parameters']['layername'] = tile
+        return j
+
+
+def run_subprocess(command: Sequence[str],
+                   shell: bool = False,
+                   doexec: bool = True,
                    monitor_log: logging.Logger = None,
-                   monitor_interval: int = 5, tile_id: str = None) -> bool:
+                   monitor_interval: int = 5,
+                   tile_id: str = None) -> bool:
     """Runs a subprocess with `psutil.Popen` and monitors its status.
 
     If subprocess returns non-zero exit code, STDERR is sent to the log.
