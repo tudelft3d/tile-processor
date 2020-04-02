@@ -10,7 +10,7 @@ features:
     table: pandactueelbestaand
     field:
         pk: gid
-        geometry: geom
+        geometry: geovlak
         uniqueid: identificatie
 
 elevation:
@@ -27,7 +27,7 @@ elevation:
 
 features_index:
     schema: tile_index
-    table: bag_index
+    table: bag_index_identical
     field:
         pk: gid
         geometry: geom
@@ -35,12 +35,12 @@ features_index:
 
 elevation_index:
     schema: tile_index
-    table: ahn_index
-    borders: border_tiles
+    table: ahn_tiles
+    borders: ahn_tiles_border
     field:
-        pk: gid
+        pk: id
         geometry: geom
-        tile: tile
+        tile: unit
         version: ahn_version
 
 output:

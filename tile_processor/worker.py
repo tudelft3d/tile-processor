@@ -19,7 +19,7 @@ import json
 from psutil import Popen
 import yaml
 
-from tileconfig import DbTilesAHN
+from tile_processor.tileconfig import DbTilesAHN
 
 log = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ class ExampleWorker:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
         package_dir = os.path.dirname(os.path.dirname(__file__))
         exe = os.path.join(package_dir, 'src', 'simulate_memory_use.sh')
-        command = ['bash', exe, '10s']
+        command = ['bash', exe, '5s']
         res = run_subprocess(command, monitor_log=monitor_log,
                              monitor_interval=monitor_interval, tile_id=tile)
         return res
@@ -420,7 +420,7 @@ class GeoflowWorker(Geoflow):
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
                            pw=feature_tiles.conn.password,
-                           schema_tiles=feature_tiles.features_index.schema.string,
+                           schema_tiles=feature_tiles.elevation_index_schema.schema.string,
                            tile='t' + feature_view)
         else:
             d = 'PG:dbname={dbname} host={host} port={port} user={user} active_schema={schema_tiles} tables={tile}'
@@ -428,7 +428,7 @@ class GeoflowWorker(Geoflow):
                            host=feature_tiles.conn.host,
                            port=feature_tiles.conn.port,
                            user=feature_tiles.conn.user,
-                           schema_tiles=feature_tiles.features_index.schema.string,
+                           schema_tiles=feature_tiles.elevation_index_schema.schema.string,
                            tile='t' + feature_view)
 
         with open(path_config, 'r') as fo:

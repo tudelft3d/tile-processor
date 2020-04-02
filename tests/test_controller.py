@@ -56,7 +56,7 @@ class TestController:
         assert 'database' in cfg['config']
 
 
-@pytest.mark.integration_test
+#@pytest.mark.integration_test
 class TestExample:
     def test_example(self, data_dir):
         tiles = ['25gn1_2', '25gn1_7', '25gn1_6']

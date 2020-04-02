@@ -2,7 +2,7 @@
 
 # Allocate a constant amount or RAM for a user defined time.
 # This script is used for testing the monitoring of a Worker's subprocess memory and CPU usage.
-# It allocates around 580Mb or RAM.
+# It allocates around 100Mb or RAM.
 # Reference: https://stackoverflow.com/a/4972220
 
 echo "Provide sleep time in the form of NUMBER[SUFFIX]"
@@ -11,7 +11,7 @@ echo "   'h' for hours, or 'd' for days."
 delay=$1
 
 echo "begin allocating memory..."
-for index in $(seq 500); do
+for index in $(seq 100); do
     value=$(seq -w -s '' $index $(($index + 100000)))
     eval array$index=$value
 done

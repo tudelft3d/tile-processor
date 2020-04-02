@@ -5,6 +5,8 @@
 
 import os
 import pytest
+import yaml
+from pathlib import Path
 from tile_processor import db
 
 #------------------------------------ add option for running the full test set
@@ -45,7 +47,13 @@ def tests_dir():
 
 @pytest.fixture('session')
 def data_dir():
-    yield os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
+    yield Path(Path(__file__).parent / 'data').absolute()
+
+@pytest.fixture(scope='function')
+def output_dir(data_dir):
+    outdir = Path(data_dir / 'output')
+    outdir.mkdir(exist_ok=True)
+    yield outdir
 
 @pytest.fixture('session')
 def root_dir():
@@ -54,3 +62,15 @@ def root_dir():
 @pytest.fixture('session')
 def package_dir(root_dir):
     yield os.path.join(root_dir, 'tile_processor')
+
+## Configurations
+
+@pytest.fixture(scope='function')
+def cfg_bag3d(data_dir):
+    with open(data_dir / 'bag3d_config.yml', 'r') as fo:
+        yield yaml.load(fo, Loader=yaml.FullLoader)
+
+@pytest.fixture(scope='function')
+def cfg_example(data_dir):
+    with open(data_dir / 'exampledb_config.yml', 'r') as fo:
+        yield yaml.load(fo, Loader=yaml.FullLoader)

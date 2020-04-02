@@ -7,7 +7,7 @@ import logging
 import os
 import re
 from random import shuffle
-from typing import List, Tuple, Union
+from typing import Sequence, Tuple, Union, List
 
 import fiona
 from psycopg2 import sql
@@ -26,22 +26,28 @@ class Tiles:
         self.to_process = []
         self.output = output
 
-    def configure(self, tiles: List[str] = None):
+    def configure(self, tiles: Sequence[str]=None):
         self.to_process = tiles
 
 
-class DbTiles:
+class DbTiles(Tiles):
     """Configures the tiles and tile index that is stored in PostgreSQL."""
 
-    def __init__(self, conn: db.Db, index_schema: db.Schema,
-                 feature_schema: db.Schema, output=None):
-        self.conn = conn
-        self.to_process = []
-        self.index = index_schema
-        self.features = feature_schema
-        self.output = output
+    def __init__(self, conn: db.Db, tile_index_schema: db.Schema=None,
+                 features_schema: db.Schema=None, output=None):
+        """
 
-    def configure(self, tiles: List[str] = None, extent=None):
+        :param conn: Database connection object
+        :param tile_index_schema: Schema of the tile index of the features.
+        :param features_schema: Schema of the `features`
+        :param output: Output directory path
+        """
+        super().__init__(output=output)
+        self.conn = conn
+        self.tile_index = tile_index_schema
+        self.features = features_schema
+
+    def configure(self, tiles: Sequence[str] = None, extent=None):
         """Configure the tiles for processing.
 
         You can provide either `tiles` or `extent`.
@@ -117,26 +123,26 @@ class DbTiles:
                 'features': self.features.schema + self.features.table,
                 'feature_pk': self.features.table + self.features.field.pk,
                 'feature_geom': self.features.table + self.features.field.geometry,
-                'index_': self.index.schema + self.index.table,
+                'tile_index': self.tile_index.schema + self.tile_index.table,
                 'ewkb': sql.Literal(ewkb),
-                'tile': self.index.table + self.index.field.tile,
-                'index_pk': self.index.table + self.index.field.pk
+                'tile': self.tile_index.table + self.tile_index.field.tile,
+                'index_pk': self.tile_index.table + self.tile_index.field.pk
             }
             query = sql.SQL("""
             SELECT {features}.*, {tile} AS tile_id
-            FROM {features} JOIN {index_} ON {feature_pk} = {index_pk}
+            FROM {features} JOIN {tile_index} ON {feature_pk} = {index_pk}
             WHERE st_within({feature_geom}, {ewkb}::geometry)
             """).format(**query_params)
         else:
             query_params = {
-                'index_': self.index.schema + self.index.table,
+                'tile_index': self.tile_index.schema + self.tile_index.table,
                 'ewkb': sql.Literal(ewkb),
-                'tile': self.index.table + self.index.field.tile,
-                'index_geom': self.index.table + self.index.field.geometry
+                'tile': self.tile_index.table + self.tile_index.field.tile,
+                'index_geom': self.tile_index.table + self.tile_index.field.geometry
             }
             query = sql.SQL("""
             SELECT {tile} AS tile_id
-            FROM {index_}
+            FROM {tile_index}
             WHERE st_intersects({index_geom}, {ewkb}::geometry)
             """).format(**query_params)
         return query
@@ -160,8 +166,8 @@ class DbTiles:
         """Return the tile IDs that are present in the tile index."""
         query_params = {
             'tiles': sql.Literal(tiles),
-            'index_': self.index.schema + self.index.table,
-            'tile': self.index.field.tile.sqlid
+            'index_': self.tile_index.schema + self.tile_index.table,
+            'tile': self.tile_index.field.tile.sqlid
         }
         query = sql.SQL("""
         SELECT DISTINCT {tile}
@@ -179,8 +185,8 @@ class DbTiles:
     def all_in_index(self) -> List[str]:
         """Get all tile IDs from the tile index."""
         query_params = {
-            'index_': self.index.schema + self.index.table,
-            'tile': self.index.field.tile.sqlid
+            'index_': self.tile_index.schema + self.tile_index.table,
+            'tile': self.tile_index.field.tile.sqlid
         }
         query = sql.SQL("""
         SELECT DISTINCT {tile} FROM {index_}
@@ -193,18 +199,19 @@ class DbTilesAHN(DbTiles):
     """AHN tiles where the tile index is stored in PostgreSQL, the point cloud
     is stored in files on the file system."""
 
-    def __init__(self, conn: db.Db, index_schema: db.Schema,
-                 feature_schema: db.Schema, features_index_schema: db.Schema,
-                 output=None):
-        super().__init__(conn, index_schema, feature_schema, output)
-        self.features_index = features_index_schema
+    def __init__(self, conn: db.Db, elevation_index_schema: db.Schema,
+                 tile_index_schema: db.Schema, features_schema: db.Schema,
+                 output: db.Schema = None):
+        super().__init__(conn=conn, tile_index_schema=tile_index_schema,
+                         features_schema=features_schema, output=output)
+        self.elevation_index_schema = elevation_index_schema
         self.file_index = None
         self.feature_views = None
 
     def versions(self) -> List[int]:
         query_params = {
-            'index_': self.index.schema + self.index.table,
-            'version': self.index.field.version.sqlid
+            'index_': self.tile_index.schema + self.tile_index.table,
+            'version': self.tile_index.field.version.sqlid
         }
         query = sql.SQL("""
         SELECT DISTINCT {version} FROM {index_};
@@ -222,8 +229,8 @@ class DbTilesAHN(DbTiles):
         """Return a list of tiles that are on the border between two AHN
         versions."""
         query_params = {
-            'tile': self.index.field.tile.sqlid,
-            'borders': self.index.schema + self.index.borders
+            'tile': self.tile_index.field.tile.sqlid,
+            'borders': self.tile_index.schema + self.tile_index.borders
         }
         query = sql.SQL("""
         SELECT {tile} FROM {borders};
@@ -235,9 +242,9 @@ class DbTilesAHN(DbTiles):
         """Return a list of tiles that are not on the border between two AHN
         versions."""
         query_params = {
-            'index_': self.index.schema + self.index.table,
-            'borders': self.index.schema + self.index.borders,
-            'tile': self.index.field.tile.sqlid
+            'index_': self.tile_index.schema + self.tile_index.table,
+            'borders': self.tile_index.schema + self.tile_index.borders,
+            'tile': self.tile_index.field.tile.sqlid
         }
         query = sql.SQL("""
             SELECT 
@@ -360,9 +367,9 @@ class DbTilesAHN(DbTiles):
         """
         if idx_identical:
             query_params = {
-                'index_': self.index.schema + self.index.table,
-                'table_': self.index.table.sqlid,
-                'tile_field': self.index.field.tile.sqlid,
+                'index_': self.tile_index.schema + self.tile_index.table,
+                'table_': self.tile_index.table.sqlid,
+                'tile_field': self.tile_index.field.tile.sqlid,
                 'tile': sql.Literal(feature_tile)
             }
             query = sql.SQL("""
@@ -426,12 +433,12 @@ class DbTilesAHN(DbTiles):
             log.debug(self.conn.print_query(query))
         else:
             query_params = {
-                'view': sql.Identifier(self.features_index.schema.string, view),
+                'view': sql.Identifier(self.elevation_index_schema.schema.string, view),
                 'features': self.features.schema + self.features.table,
                 'f_pk': self.features.field.pk.sqlid,
-                'features_index': self.features_index.schema + self.features_index.table,
-                'fi_pk': self.features_index.field.pk.sqlid,
-                'fi_tileid': self.features_index.field.tile.sqlid,
+                'features_index': self.elevation_index_schema.schema + self.elevation_index_schema.table,
+                'fi_pk': self.elevation_index_schema.field.pk.sqlid,
+                'fi_tileid': self.elevation_index_schema.field.tile.sqlid,
                 'tile': sql.Literal(feature_tile)
             }
             query = sql.SQL("""
