@@ -11,8 +11,8 @@ which can control the execution of the Processors."""
 import json
 import logging
 import os
-from shutil import copyfile, rmtree
-from typing import TextIO, List
+from shutil import copyfile
+from typing import TextIO, List, Union
 
 import pykwalify.core
 import pykwalify.errors
@@ -158,45 +158,102 @@ class ControllerFactory:
         return controller(**kwargs)
 
 
-class ExampleController:
-    """Controller for tiles that are stored in PostgreSQL."""
-
+class Controller:
     def __init__(self,
                  configuration: TextIO,
-                 threads: int,
-                 monitor_log: logging.Logger,
-                 monitor_interval: int):
-        self.schema = ConfigurationSchema('example')
+                 threads: int = 1,
+                 monitor_log: logging.Logger = None,
+                 monitor_interval: int = None,
+                 config_schema: str = None):
+        self.schema = ConfigurationSchema(config_schema)
         self.cfg = self.parse_configuration(
             configuration, threads, monitor_log, monitor_interval
         )
         self.processors = {}
 
+
     def parse_configuration(self,
-                            config: TextIO,
+                            configuration: TextIO,
                             threads: int,
                             monitor_log: logging.Logger,
                             monitor_interval: int) -> dict:
         """Parse, validate and prepare the configuration file.
 
-        :param monitor_log:
-        :param monitor_interval:
-        :param config: A text stream, containing the configuration
+        :param monitor_log: Logger for monitoring
+        :param monitor_interval: Monitoring interval in seconds
+        :param configuration: A text stream, containing the configuration
         :param threads: Number of threads
         :return: Configuration
         """
         cfg = {}
-        try:
-            cfg_stream = self.schema.validate_configuration(config)
-            log.info(f"Configuration file {config.name} is valid")
-        except Exception as e:
-            log.exception(e)
-            raise
-        cfg['threads'] = int(threads)
-        cfg['monitor_log'] = monitor_log
-        cfg['monitor_interval'] = monitor_interval
-        cfg['config'] = cfg_stream
-        return cfg
+        if configuration is None:
+            log.error("Configuration file is empty")
+            return cfg
+        else:
+            try:
+                cfg_stream = self.schema.validate_configuration(configuration)
+                log.info(f"Configuration file {configuration.name} is valid")
+            except Exception as e:
+                log.exception(e)
+                raise
+            cfg['threads'] = int(threads)
+            cfg['monitor_log'] = monitor_log
+            cfg['monitor_interval'] = monitor_interval
+            cfg['config'] = cfg_stream
+            return cfg
+
+
+    def configure(self, tiles, processor_key: str, worker_key: str):
+        """Configure the controller.
+
+        Input-specific subclasses need to implement this.
+        """
+        worker_init = worker.factory.create(worker_key)
+        self.cfg['worker'] = worker_init.execute
+
+        # Configure the tiles (DBTiles in this case)
+        tilescfg = tileconfig.DbTiles(
+            conn=db.Db(**self.cfg['config']['database']),
+            index_schema=db.Schema(self.cfg['config']['features_index']),
+            feature_schema=db.Schema(self.cfg['config']['features'])
+        )
+        tilescfg.configure(tiles=tiles)
+        out_dir = output.DirOutput(self.cfg['config']['output']['dir'])
+        # Set up logic for processing different parts. Parst are required
+        # for example when processing a large area that needs different tile
+        # configurations. For instance the Netherlands with AHN2 and AHN3.
+        parts = {
+            'part_A': tilescfg,
+        }
+
+        # Create a processor for each part
+        for part, _tilescfg in parts.items():
+            _tilescfg.output = output.DirOutput(out_dir.add(part))
+            proc = processor.factory.create(
+                processor_key, name=part, tiles=_tilescfg)
+            self.processors[proc] = part
+        log.info(f"Configured {self.__class__.__name__}")
+
+
+    def run(self) -> dict:
+        """Run the Controller.
+
+        :return: `(processor.name : [tile ID])`
+            Returns the tile IDs per Processor that failed even after
+            restarts
+        """
+        log.info(f"Running {self.__class__.__name__}")
+        results = {}
+        for proc in self.processors:
+            proc.configure(**self.cfg)
+            res = proc.process()
+            results[proc.name] = res
+        log.info(f"Done {self.__class__.__name__}. Failed: {results}")
+        return results
+
+
+class ExampleController(Controller):
+    """Controller for tiles that are stored in PostgreSQL."""
 
     def configure(self, tiles, processor_key: str, worker_key: str):
         """Configure the controller."""
@@ -233,39 +290,12 @@ class ExampleController:
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
-    def run(self) -> dict:
-        """Run the Controller
 
-        :return: `(processor.name : [tile ID])`
-            Returns the tile IDs per Processor that failed even after
-            restarts
-        """
-        log.info(f"Running {self.__class__.__name__}")
-        results = {}
-        for proc in self.processors:
-            proc.configure(**self.cfg)
-            res = proc.process()
-            results[proc.name] = res
-        log.info(f"Done {self.__class__.__name__}. Failed: {results}")
-        return results
-
-
-class AHNController:
+class AHNController(Controller):
     """Controller for AHN."""
 
-    def __init__(self,
-                 configuration: TextIO,
-                 threads: int,
-                 monitor_log: logging.Logger,
-                 monitor_interval: int):
-        self.schema = ConfigurationSchema('threedfier')
-        self.cfg = self.parse_configuration(
-            configuration, threads, monitor_log, monitor_interval
-        )
-        self.processors = {}
-
     def parse_configuration(self,
-                            config: TextIO,
+                            configuration: TextIO,
                             threads: int,
                             monitor_log: logging.Logger,
                             monitor_interval: int) -> dict:
@@ -278,28 +308,31 @@ class AHNController:
         :return: Configuration
         """
         cfg = {}
-        try:
-            cfg_stream = self.schema.validate_configuration(config)
-            log.info(f"Configuration file {config.name} is valid")
-        except Exception as e:
-            log.exception(e)
-            raise
+        if configuration is None:
+            log.error("Configuration file is empty")
+            return cfg
+        else:
+            try:
+                cfg_stream = self.schema.validate_configuration(configuration)
+                log.info(f"Configuration file {configuration.name} is valid")
+            except Exception as e:
+                log.exception(e)
+                raise
 
-        cfg['config'] = cfg_stream
-        directory_mapping = {}
-        for mapping in cfg_stream['elevation']['directories']:
-            dir, properties = mapping.popitem()
-            if not os.path.isabs(dir):
-                raise ValueError(f"Path {dir} is not absolute in "
-                                 f"elevation:directories")
-            directory_mapping[dir] = properties
-        cfg['config']['directory_mapping'] = directory_mapping
+            cfg['config'] = cfg_stream
+            directory_mapping = {}
+            for mapping in cfg_stream['elevation']['directories']:
+                dir, properties = mapping.popitem()
+                if not os.path.isabs(dir):
+                    raise ValueError(f"Path {dir} is not absolute in "
+                                     f"elevation:directories")
+                directory_mapping[dir] = properties
+            cfg['config']['directory_mapping'] = directory_mapping
 
-        cfg['threads'] = int(threads)
-        cfg['monitor_log'] = monitor_log
-        cfg['monitor_interval'] = monitor_interval
-
-        return cfg
+            cfg['threads'] = int(threads)
+            cfg['monitor_log'] = monitor_log
+            cfg['monitor_interval'] = monitor_interval
+            return cfg
 
     def configure(self, tiles, processor_key: str, worker_key: str):
         """Configure the control logic."""
@@ -378,9 +411,6 @@ class AHNTINController(AHNController):
         worker_init = worker.factory.create(worker_key)
         self.cfg['worker'] = worker_init.execute
 
-        # Configure the tiles
-        # NOTE BD: Ignore AHN versions for now, just testing
-
         ahn_3 = tileconfig.DbTilesAHN(
             conn=db.Db(**self.cfg['config']['database']),
             index_schema=db.Schema(self.cfg['config']['elevation_index']),
@@ -402,6 +432,10 @@ class AHNTINController(AHNController):
                 processor_key, name=part, tiles=ahntiles)
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
+
+
+
+
 
 def add_abspath(dirs: List):
     """Recursively append the absolute path to the paths in a nested list

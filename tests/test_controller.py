@@ -25,9 +25,39 @@ class TestConfgurationSchema:
         assert 'test_config_schema.yml' not in files
 
 
-class TestExample:
+@pytest.mark.parametrize('controller_key', controller.factory._controllers)
+def test_factory(controller_key):
+    controller.factory.create(
+        controller_key,
+        configuration=None,
+        threads=None,
+        monitor_log=None,
+        monitor_interval=None,
+        config_schema=None
+    )
 
-    @pytest.mark.long
+
+class TestController:
+    def test_parse_configuration(self, data_dir):
+        ctrl = controller.Controller(
+            configuration=None,
+            threads=None,
+            monitor_interval=None,
+            monitor_log=None,
+            config_schema=None
+        )
+        fp = os.path.join(data_dir, 'exampledb_config.yml')
+        configuration = open(fp, 'r', encoding='utf-8')
+        cfg = ctrl.parse_configuration(
+            configuration=configuration, threads=1, monitor_log=None,
+            monitor_interval=None
+        )
+        assert len(cfg['config']) > 0
+        assert 'database' in cfg['config']
+
+
+@pytest.mark.integration_test
+class TestExample:
     def test_example(self, data_dir):
         tiles = ['25gn1_2', '25gn1_7', '25gn1_6']
         threads=3
@@ -49,7 +79,6 @@ class TestExample:
         for part, failed in results.items():
             assert len(failed) == 0
 
-    @pytest.mark.long
     def test_exampledb(self, data_dir):
         tiles = ['all',]
         threads=3
@@ -71,9 +100,9 @@ class TestExample:
         for part, failed in results.items():
             assert len(failed) == 0
 
-class TestThreedfier:
 
-    @pytest.mark.long
+@pytest.mark.integration_test
+class TestThreedfier:
     def test_for_debug(self, data_dir):
         threads=3
         tiles=['all',]

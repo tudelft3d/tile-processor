@@ -7,6 +7,30 @@ import os
 import pytest
 from tile_processor import db
 
+#------------------------------------ add option for running the full test set
+def pytest_addoption(parser):
+    parser.addoption("--integration-test", action="store_true",
+                     default=False,
+                     help="run integration tests")
+    parser.addoption("--slow-integration-test", action="store_true",
+                     default=False,
+                     help="run slow integration tests")
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--integration-test"):
+        return
+    if config.getoption("--slow-integration-test"):
+        return
+    skip_integration = pytest.mark.skip(
+        reason="need --integration-test option to run")
+    skip_slow_integration = pytest.mark.skip(
+        reason="need --slow-integration-test option to run")
+    for item in items:
+        if "integration_test" in item.keywords:
+            item.add_marker(skip_integration)
+        if "slow_integration_test" in item.keywords:
+            item.add_marker(skip_slow_integration)
+
 #-------------------------------------------------------------------- testing DB
 @pytest.fixture(scope="session")
 def bag3d_db(request):
