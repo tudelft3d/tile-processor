@@ -7,6 +7,7 @@ import os
 import pytest
 import yaml
 from pathlib import Path
+from io import StringIO
 from tile_processor import db
 
 #------------------------------------ add option for running the full test set
@@ -71,6 +72,24 @@ def cfg_bag3d(data_dir):
         yield yaml.load(fo, Loader=yaml.FullLoader)
 
 @pytest.fixture(scope='function')
+def cfg_bag3d_path(data_dir):
+    yield data_dir / 'bag3d_config.yml'
+
+@pytest.fixture(scope='function')
 def cfg_example(data_dir):
     with open(data_dir / 'exampledb_config.yml', 'r') as fo:
         yield yaml.load(fo, Loader=yaml.FullLoader)
+
+@pytest.fixture(scope='function')
+def cfg_ahn_abs(cfg_bag3d, data_dir) -> StringIO:
+    """Absolute paths of the AHN directories in the directory mapping of the
+    configuration file
+    """
+    # Replace the relative AHN directory paths to absolute paths
+    cfg_abs = cfg_bag3d
+    for i, d in enumerate(cfg_bag3d['elevation']['directories']):
+        ahn_path, mapping = list(d.items())[0]
+        absp = data_dir / ahn_path
+        cfg_abs['elevation']['directories'][i] = {str(absp): mapping}
+    cfg_abs_stream = yaml.dump(cfg_abs)
+    yield StringIO(cfg_abs_stream)

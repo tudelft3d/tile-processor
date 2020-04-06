@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 
-"""Tile configuration."""
+"""Tile configuration.
+
+
+"""
 
 
 import logging
@@ -23,6 +26,10 @@ log = logging.getLogger(__name__)
 class Tiles:
     """Basic tile configuration"""
     def __init__(self, output=None):
+        """
+
+        :param output: Output directory path
+        """
         self.to_process = []
         self.output = output
 
@@ -195,6 +202,7 @@ class DbTiles(Tiles):
         return [t[0] for t in self.conn.get_query(query)]
 
 
+# FIXME: DbTilesAHN is composed of DbTiles, and it does not inherit from it!
 class DbTilesAHN(DbTiles):
     """AHN tiles where the tile index is stored in PostgreSQL, the point cloud
     is stored in files on the file system."""
@@ -202,6 +210,11 @@ class DbTilesAHN(DbTiles):
     def __init__(self, conn: db.Db, elevation_index_schema: db.Schema,
                  tile_index_schema: db.Schema, features_schema: db.Schema,
                  output: db.Schema = None):
+        """
+
+        :param elevation_index_schema: Schema of the tile index of the
+            elevation files (point cloud files)
+        """
         super().__init__(conn=conn, tile_index_schema=tile_index_schema,
                          features_schema=features_schema, output=output)
         self.elevation_index_schema = elevation_index_schema
@@ -210,8 +223,8 @@ class DbTilesAHN(DbTiles):
 
     def versions(self) -> List[int]:
         query_params = {
-            'index_': self.tile_index.schema + self.tile_index.table,
-            'version': self.tile_index.field.version.sqlid
+            'index_': self.elevation_index_schema.schema + self.elevation_index_schema.table,
+            'version': self.elevation_index_schema.field.version.sqlid
         }
         query = sql.SQL("""
         SELECT DISTINCT {version} FROM {index_};
@@ -229,8 +242,8 @@ class DbTilesAHN(DbTiles):
         """Return a list of tiles that are on the border between two AHN
         versions."""
         query_params = {
-            'tile': self.tile_index.field.tile.sqlid,
-            'borders': self.tile_index.schema + self.tile_index.borders
+            'tile': self.elevation_index_schema.field.tile.sqlid,
+            'borders': self.elevation_index_schema.schema + self.elevation_index_schema.borders
         }
         query = sql.SQL("""
         SELECT {tile} FROM {borders};
@@ -242,9 +255,9 @@ class DbTilesAHN(DbTiles):
         """Return a list of tiles that are not on the border between two AHN
         versions."""
         query_params = {
-            'index_': self.tile_index.schema + self.tile_index.table,
-            'borders': self.tile_index.schema + self.tile_index.borders,
-            'tile': self.tile_index.field.tile.sqlid
+            'index_': self.elevation_index_schema.schema + self.elevation_index_schema.table,
+            'borders': self.elevation_index_schema.schema + self.elevation_index_schema.borders,
+            'tile': self.elevation_index_schema.field.tile.sqlid
         }
         query = sql.SQL("""
             SELECT 
@@ -355,11 +368,11 @@ class DbTilesAHN(DbTiles):
         log.debug(f"File index length: {len(file_index)}")
         return file_index
 
-    def match_feature_tile(self, features: DbTiles,
+    def match_feature_tile(self, tile_index: DbTiles,
                            feature_tile: str, idx_identical: bool=True):
         """Find the elevation tiles that match the footprint tile.
 
-        :param features:
+        :param tile_index: The tile
         :param feature_tile: ID of the feature tile
         :param idx_identical: If **True**, elevation and feature tiles are
             matched on IDs without any spatial comparison. If **False**,

@@ -168,6 +168,7 @@ class ThreedfierWorker:
                 **ignore) -> bool:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
         ahn_match = tiles.match_feature_tile(feature_tile=tile,
+                                             tile_index=tiles,
                                              idx_identical=True)
         if tiles.file_index[tile] is None or len(tiles.file_index[tile]) == 0:
             log.debug(f"Pointcloud file(s) not available for tile {tile}")

@@ -193,9 +193,9 @@ class TestAHN:
     def test_versions(self, bag3d_db, elevation_idx_sch):
         expectation = [2,3]
         ahn_tiles = tileconfig.DbTilesAHN(conn=bag3d_db,
-                                          tile_index_schema=db.Schema(
+                                          tile_index_schema=None,
+                                          elevation_index_schema=db.Schema(
                                               elevation_idx_sch),
-                                          elevation_index_schema=None,
                                           features_schema=None)
         result = ahn_tiles.versions()
         assert set(result) == set(expectation)
@@ -203,9 +203,9 @@ class TestAHN:
     def test_version_border(self, bag3d_db, elevation_idx_sch):
         expectation = ["25gn1_3", "25gn1_4", "25gn1_6", "25gn1_7", "25gn1_10", "25gn1_14"]
         ahn_tiles = tileconfig.DbTilesAHN(conn=bag3d_db,
-                                          tile_index_schema=db.Schema(
+                                          tile_index_schema=None,
+                                          elevation_index_schema=db.Schema(
                                               elevation_idx_sch),
-                                          elevation_index_schema=None,
                                           features_schema=None)
         result = ahn_tiles._version_border()
         assert set(result) == set(expectation)
@@ -214,9 +214,9 @@ class TestAHN:
         expectation = {3: ['25gn1_1', '25gn1_2', '25gn1_5', '25gn1_9', '25gn1_13'],
                        2: ['25gn1_8', '25gn1_11', '25gn1_12', '25gn1_15', '25gn1_16']}
         ahn_tiles = tileconfig.DbTilesAHN(conn=bag3d_db,
-                                          tile_index_schema=db.Schema(
+                                          tile_index_schema=None,
+                                          elevation_index_schema=db.Schema(
                                               elevation_idx_sch),
-                                          elevation_index_schema=None,
                                           features_schema=None)
         result = ahn_tiles._version_not_border()
         assert set(result) == set(expectation)

@@ -192,7 +192,7 @@ class Controller:
         else:
             try:
                 cfg_stream = self.schema.validate_configuration(configuration)
-                log.info(f"Configuration file {configuration.name} is valid")
+                log.info(f"Configuration file is valid")
             except Exception as e:
                 log.exception(e)
                 raise
@@ -314,7 +314,7 @@ class AHNController(Controller):
         else:
             try:
                 cfg_stream = self.schema.validate_configuration(configuration)
-                log.info(f"Configuration file {configuration.name} is valid")
+                log.info(f"Configuration file is valid")
             except Exception as e:
                 log.exception(e)
                 raise
@@ -340,35 +340,29 @@ class AHNController(Controller):
         self.cfg['worker'] = worker_init.execute
 
         # Configure the tiles
-        # NOTE BD: Using the elevation_index as feature tile index works for
-        # now, because the elevation tiles equal the feature tiles. However,
-        # if that is not the case, then I'll need to partition the AHN tiles
-        # as I do with the feature tiles below, and use the AHN tile partitions
-        # to partition the feature tiles too.
-        # FIXME: need a way to separately pass the feature_index, elevation_index and all the features/elevation to the tiles
         _tilecfg = {
             'conn':
                 db.Db(**self.cfg['config']['database']),
             'elevation_index_schema':
                 db.Schema(self.cfg['config']['elevation_index']),
-            'features_index_schema':
+            'tile_index_schema':
                 db.Schema(self.cfg['config']['features_index']),
             'features_schema':
                 db.Schema(self.cfg['config']['features'])
         }
 
         # Configure feature tiles with elevation from AHN2
-        ahn_2 = tileconfig.DbTilesAHN(,
+        ahn_2 = tileconfig.DbTilesAHN(**_tilecfg)
         ahn_2.configure(tiles=tiles, version=2,
                         directory_mapping=self.cfg['config']['directory_mapping'],
                         tin=False)
         # Configure feature tiles with elevation from AHN3
-        ahn_3 = tileconfig.DbTilesAHN(,
+        ahn_3 = tileconfig.DbTilesAHN(**_tilecfg)
         ahn_3.configure(tiles=tiles, version=3,
                         directory_mapping=self.cfg['config']['directory_mapping'],
                         tin=False)
         # Configure feature tiles that are on the border of AHN2 and AHN3
-        ahn_border = tileconfig.DbTilesAHN(,
+        ahn_border = tileconfig.DbTilesAHN(**_tilecfg)
         ahn_border.configure(tiles=tiles, on_border=True,
                              directory_mapping=self.cfg['config']['directory_mapping'],
                              tin=False)

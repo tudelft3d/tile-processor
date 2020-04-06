@@ -7,7 +7,7 @@ import os
 
 import pytest
 
-from tile_processor import controller
+from tile_processor import controller, worker
 
 
 class TestConfgurationSchema:
@@ -101,15 +101,13 @@ class TestExample:
             assert len(failed) == 0
 
 
-@pytest.mark.integration_test
-class TestThreedfier:
-    def test_for_debug(self, data_dir):
+class TestAHN:
+    @pytest.mark.parametrize('worker_key', worker.factory._executors)
+    def test_configure(self, cfg_ahn_abs, worker_key):
         threads=3
         tiles=['all',]
-        fp = os.path.join(data_dir, 'bag3d_config_balazs.yml')
-        configuration = open(fp, 'r', encoding='utf-8')
         threedfier_controller = controller.factory.create('AHN',
-                                                          configuration=configuration,
+                                                          configuration=cfg_ahn_abs,
                                                           threads=threads,
                                                           monitor_log=None,
                                                           monitor_interval=None
@@ -117,6 +115,5 @@ class TestThreedfier:
         threedfier_controller.configure(
             tiles=tiles,
             processor_key='threadprocessor',
-            worker_key='3dfier'
+            worker_key=worker_key
         )
-        threedfier_controller.run()
