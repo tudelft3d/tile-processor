@@ -584,7 +584,7 @@ class DbTilesAHN(Tiles):
         return tiles
 
 
-    def create_tile_view(self, feature_tile, tin=False) -> Union[None, str]:
+    def create_tile_view(self, feature_tile: str, tin: bool=False) -> Union[None, str]:
         """Create a temporary view with a single tile polygon for GDAL to
         connect to.
 
@@ -598,14 +598,13 @@ class DbTilesAHN(Tiles):
 
         :returns: The schema and view name of the created view
         """
-        # FIXME: this should use the features_index, instead of features. This
-        #  only works for the TIN tiles where the tile polygon IS the feature
-        #  itself.
         # FIXME: this should be done better than passing tin-switch as a parameter
         view = "_" + feature_tile
         if tin:
+            raise NotImplementedError("Balázs review this branch and make sure it works after the refactoring!")
+            view_sql = sql.Identifier(view)
             query_params = {
-                'view': sql.Identifier(view),
+                'view': view_sql,
                 'feature_table': self.feature_tiles.tile_index.boundaries.schema + self.feature_tiles.tile_index.boundaries.table,
                 'uniqueid': self.feature_tiles.tile_index.boundaries.field.uniqueid.sqlid,
                 'tile': sql.Literal(feature_tile)
@@ -616,20 +615,21 @@ class DbTilesAHN(Tiles):
             """).format(**query_params)
             log.debug(self.conn.print_query(query))
         else:
+            view_sql = sql.Identifier(self.feature_tiles.features.schema.string, view)
             query_params = {
-                'view': sql.Identifier(self.elevation_tiles.tile_index.boundaries.schema.string, view),
+                'view': view_sql,
                 'features': self.feature_tiles.features.schema + self.feature_tiles.features.table,
                 'f_pk': self.feature_tiles.features.field.pk.sqlid,
-                'features_index': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.table,
-                'fi_pk': self.elevation_tiles.tile_index.boundaries.field.pk.sqlid,
-                'fi_tileid': self.elevation_tiles.tile_index.boundaries.field.tile.sqlid,
+                'features_index': self.feature_tiles.tile_index.index.schema + self.feature_tiles.tile_index.index.table,
+                'fi_pk': self.feature_tiles.tile_index.index.field.pk.sqlid,
+                'fi_tileid': self.feature_tiles.tile_index.index.field.tile.sqlid,
                 'tile': sql.Literal(feature_tile)
             }
             query = sql.SQL("""
             CREATE OR REPLACE VIEW {view}
             AS SELECT f.* 
             FROM {features} f 
-            JOIN {features_index} fi ON f.{f_pk} = fi.{fi_pk} 
+                JOIN {features_index} fi ON f.{f_pk} = fi.{fi_pk} 
             WHERE fi.{fi_tileid}={tile};
             """).format(**query_params)
             log.debug(self.conn.print_query(query))

@@ -114,7 +114,7 @@ class ThreedfierWorker:
                            user=dbtilesahn.conn.user,
                            pw=dbtilesahn.conn.password,
                            schema_tiles=dbtilesahn.feature_tiles.features.schema.string,
-                           bag_tile=dbtilesahn.feature_tiles.features.table.string)
+                           bag_tile=dbtilesahn.feature_views[tile])
         else:
             d = 'PG:dbname={dbname} host={host} port={port} user={user} schemas={schema_tiles} tables={bag_tile}'
             dns = d.format(dbname=dbtilesahn.conn.dbname,
@@ -122,7 +122,7 @@ class ThreedfierWorker:
                            port=dbtilesahn.conn.port,
                            user=dbtilesahn.conn.user,
                            schema_tiles=dbtilesahn.feature_tiles.features.schema.string,
-                           bag_tile=dbtilesahn.feature_tiles.features.table.string)
+                           bag_tile=dbtilesahn.feature_views[tile])
 
         if ahn_version == {2}:
             las_building = [1]
@@ -133,34 +133,6 @@ class ThreedfierWorker:
         else:
             las_building = None
         uniqueid = dbtilesahn.feature_tiles.features.field.uniqueid.string
-
-        _d = f"""
-        input_polygons:
-          - datasets:
-              - "{dns}"
-            uniqueid: {uniqueid}
-            lifting: Building
-
-        lifting_options:
-          Building:
-            roof:
-              height: percentile-95
-              use_LAS_classes: {las_building}
-            ground:
-              height: percentile-10
-              use_LAS_classes: [2]
-
-        input_elevation:
-          - datasets:
-              {ahn_file}
-            omit_LAS_classes:
-            thinning: 0
-
-        options:
-          building_radius_vertex_elevation: 0.5
-          radius_vertex_elevation: 0.5
-          threshold_jump_edges: 0.5
-        """
 
         yml = yaml.load(f"""
         input_polygons:
@@ -239,45 +211,36 @@ class ThreedfierWorker:
 
 class ThreedfierTINWorker:
 
-    def create_yaml(self, tile, feature_tiles, ahn_match, tinsimp):
+    def create_yaml(self, tile, dbtilesahn, ahn_paths, tinsimp):
         """Create the YAML configuration for 3dfier."""
-        tinsimp = str(tinsimp)
         ahn_file = ""
-        ahn_path = feature_tiles.file_index[tile]
-        feature_view = feature_tiles.feature_views[tile]
-        if len(ahn_path) > 1:
-            for p in ahn_path:
-                ahn_file += "- " + p + "\n" + "      "
+        if len(ahn_paths) > 1:
+            for p,v in ahn_paths:
+                ahn_file += "- " + p + "\n" + "              "
         else:
-            ahn_file += "- " + ahn_path[0]
-        ahn_version = set([ahn_match[tile]])
-        # FIXME: schemas cannot be hardcoded
-        if feature_tiles.conn.password:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} tables={table}'
-            dns = d.format(dbname=feature_tiles.conn.dbname,
-                           host=feature_tiles.conn.host,
-                           port=feature_tiles.conn.port,
-                           user=feature_tiles.conn.user,
-                           pw=feature_tiles.conn.password,
-                           table=feature_view)
-        else:
-            d = 'PG:dbname={dbname} host={host} port={port} user={user} tables={table}'
-            dns = d.format(dbname=feature_tiles.conn.dbname,
-                           host=feature_tiles.conn.host,
-                           port=feature_tiles.conn.port,
-                           user=feature_tiles.conn.user,
-                           table=feature_view)
+            ahn_file += "- " + ahn_paths[0]
 
-        if ahn_version == set([2]):
-            las_building = [1]
-        elif ahn_version == set([3]):
-            las_building = [6]
-        elif ahn_version == set([2, 3]):
-            las_building = [1, 6]
+        if dbtilesahn.conn.password:
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} schemas={schema_tiles} tables={bag_tile}'
+            dns = d.format(dbname=dbtilesahn.conn.dbname,
+                           host=dbtilesahn.conn.host,
+                           port=dbtilesahn.conn.port,
+                           user=dbtilesahn.conn.user,
+                           pw=dbtilesahn.conn.password,
+                           schema_tiles=dbtilesahn.feature_tiles.features.schema.string,
+                           bag_tile=dbtilesahn.feature_views[tile])
         else:
-            las_building = None
-        uniqueid = feature_tiles.features.field.uniqueid.string
+            d = 'PG:dbname={dbname} host={host} port={port} user={user} schemas={schema_tiles} tables={bag_tile}'
+            dns = d.format(dbname=dbtilesahn.conn.dbname,
+                           host=dbtilesahn.conn.host,
+                           port=dbtilesahn.conn.port,
+                           user=dbtilesahn.conn.user,
+                           schema_tiles=dbtilesahn.feature_tiles.features.schema.string,
+                           bag_tile=dbtilesahn.feature_views[tile])
 
+        uniqueid = dbtilesahn.feature_tiles.features.field.uniqueid.string
+
+        tinsimp = str(tinsimp)
         yml = yaml.load(f"""
         input_polygons:
           - datasets:
@@ -310,15 +273,13 @@ class ThreedfierTINWorker:
                 monitor_interval,
                 **ignore) -> bool:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
-        ahn_match = tiles.match_elevation_tile(feature_tile=tile,
-                                               idx_identical=True)
-        if tiles.file_index[tile] is None or len(tiles.file_index[tile]) == 0:
-            log.debug(f"Pointcloud file(s) not available for tile {tile}")
+        if len(tiles.elevation_file_index[tile]) == 0:
+            log.debug(f"Elevation files are not available for tile {tile}")
             return False
         else:
             yml = self.create_yaml(tile=tile,
-                                   feature_tiles=tiles,
-                                   ahn_match=ahn_match,
+                                   dbtilesahn=tiles,
+                                   ahn_paths=tiles.elevation_file_index[tile],
                                    tinsimp=tinsimp)
             yml_path = tiles.output.add(f"{tile}.yml")
             log.debug(f"{yml_path}\n{yml}")
