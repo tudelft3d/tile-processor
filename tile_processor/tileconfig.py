@@ -1,16 +1,14 @@
 # -*- coding: utf-8 -*-
 
-"""Tile configuration.
-
-
-"""
+"""Tile configuration."""
 
 
 import logging
 import os
 import re
 from random import shuffle
-from typing import Sequence, Tuple, Union, List
+from typing import Sequence, Tuple, Union, List, Mapping
+from abc import ABC, abstractmethod
 
 import fiona
 from psycopg2 import sql
@@ -18,22 +16,35 @@ from psycopg2 import Error as pgError
 from shapely import geos
 from shapely.geometry import shape, Polygon
 
-from tile_processor import db
+from tile_processor import db, output
 
 log = logging.getLogger(__name__)
 
 
-class Tiles:
+class Tiles(ABC):
     """Basic tile configuration"""
-    def __init__(self, output=None):
+    def __init__(self, output: output.Output=None) -> None:
         """
-
-        :param output: Output directory path
+        :param output: An Output object
         """
         self.to_process = []
         self.output = output
 
-    def configure(self, tiles: Sequence[str]=None):
+    @abstractmethod
+    def configure(self) -> None:
+        pass
+
+
+class FileTiles(Tiles):
+    """Configures the tiles and tile index that is stored in files."""
+
+    def __init__(self, output: output.Output = None) -> None:
+        """
+        :param output: An Output object
+        """
+        super().__init__(output=output)
+
+    def configure(self, tiles = Sequence[str]) -> None:
         self.to_process = tiles
 
 
@@ -41,57 +52,43 @@ class DbTiles(Tiles):
     """Configures the tiles and tile index that is stored in PostgreSQL."""
 
     def __init__(self, conn: db.Db, tile_index_schema: db.Schema=None,
-                 features_schema: db.Schema=None, output=None):
+                 features_schema: db.Schema=None, output: output.Output=None):
         """
 
         :param conn: Database connection object
         :param tile_index_schema: Schema of the tile index of the features.
         :param features_schema: Schema of the `features`
-        :param output: Output directory path
         """
         super().__init__(output=output)
         self.conn = conn
         self.tile_index = tile_index_schema
         self.features = features_schema
 
-    def configure(self, tiles: Sequence[str] = None, extent=None):
+    def configure(self, tiles: Sequence[str]=None, extent: str=None) -> None:
         """Configure the tiles for processing.
 
         You can provide either `tiles` or `extent`.
 
         :param tiles: A list of tile IDs, or a list with a single item
             `['all',]` for processing all tiles.
-        :param extent: A polygon for selecting the tiles. The selected tiles
+        :param extent: Path to a file (GeoJSON), containing a single
+            polygon. A polygon for selecting the tiles. The selected tiles
             are clipped by the `extent`. If the area of the `extent` is less
             than that of a single tile, than the clipped tile-parts within the
             extent are dissolved into a single tile.
         """
         if (extent and tiles) or ((not extent) and (not tiles)):
-            raise AttributeError("Provide either 'tiles' or 'extent'.")
+            raise ValueError("Provide either 'tiles' or 'extent'.")
         if extent:
-            self.to_process = self._with_extent(extent)
+            self.to_process = self.with_extent(extent)
         else:
-            self.to_process = self._with_list(tiles)
+            self.to_process = self.with_list(tiles)
 
-    def _with_extent(self, extent) -> List:
+    def with_extent(self, extent) -> List:
         """Select tiles based on a polygon."""
         log.info("Clipping the tiles to the extent.")
         poly, ewkb = self.read_extent(extent)
         return self.within_extent(ewkb=ewkb)
-
-    def _with_list(self, tiles) -> List:
-        """Select tiles based on a list of tile IDs."""
-        if ['all',] == tiles:
-            log.info("Getting all tiles from the index.")
-            in_index = self.all_in_index()
-        else:
-            log.info("Verifying if the provided tiles are in the index.")
-            in_index = self.tiles_in_index(tiles)
-        if len(in_index) == 0:
-            raise AttributeError("None of the provided tiles are present in the"
-                                 " index.")
-        else:
-            return in_index
 
     @staticmethod
     def read_extent(extent: str) -> Tuple[Polygon, str]:
@@ -119,44 +116,9 @@ class DbTiles(Tiles):
                 ewkb = poly.wkb_hex
                 return poly, ewkb
 
-    def _within_extent(self, ewkb: str) -> sql.Composed:
-        """Return a query for the features that are `within
-        <http://postgis.net/docs/manual-2.5/ST_Within.html>`_ the extent. If
-        features are not provided (as `feature_schema`), then select the tiles
-        that intersect the extent.
-        """
-        if self.features:
-            query_params = {
-                'features': self.features.schema + self.features.table,
-                'feature_pk': self.features.table + self.features.field.pk,
-                'feature_geom': self.features.table + self.features.field.geometry,
-                'tile_index': self.tile_index.schema + self.tile_index.table,
-                'ewkb': sql.Literal(ewkb),
-                'tile': self.tile_index.table + self.tile_index.field.tile,
-                'index_pk': self.tile_index.table + self.tile_index.field.pk
-            }
-            query = sql.SQL("""
-            SELECT {features}.*, {tile} AS tile_id
-            FROM {features} JOIN {tile_index} ON {feature_pk} = {index_pk}
-            WHERE st_within({feature_geom}, {ewkb}::geometry)
-            """).format(**query_params)
-        else:
-            query_params = {
-                'tile_index': self.tile_index.schema + self.tile_index.table,
-                'ewkb': sql.Literal(ewkb),
-                'tile': self.tile_index.table + self.tile_index.field.tile,
-                'index_geom': self.tile_index.table + self.tile_index.field.geometry
-            }
-            query = sql.SQL("""
-            SELECT {tile} AS tile_id
-            FROM {tile_index}
-            WHERE st_intersects({index_geom}, {ewkb}::geometry)
-            """).format(**query_params)
-        return query
-
     def within_extent(self, ewkb: str, reorder: bool = True) -> List[str]:
         """Get a list of tiles that are within the extent."""
-        within_query = self._within_extent(ewkb)
+        within_query = self.within_extent_subquery(ewkb)
         query = sql.SQL("""
         SELECT DISTINCT within.tile_id
         FROM ({}) within;
@@ -169,12 +131,78 @@ class DbTiles(Tiles):
         log.debug(f"Nr. of tiles in extent: {len(tiles)}")
         return tiles
 
+    def within_extent_subquery(self, ewkb: str) -> sql.Composed:
+        """Return a query for the features that are `within
+        <http://postgis.net/docs/manual-2.5/ST_Within.html>`_ the extent.
+
+        If `self.features` is set, then select the tile IDs from the features
+        that are `ST_Within()` the provided `ewkb` polygon.
+
+        Else if `self.features` is None, then select the tile IDs whose
+        boundaries intersect with the `ewkb` polygon.
+        """
+        if self.features:
+            # Select the features within the provided EWKB polygon
+            query_params = {
+                'features': self.features.schema + self.features.table,
+                'feature_pk': self.features.table + self.features.field.pk,
+                'feature_geom': self.features.table + self.features.field.geometry,
+                'tile_index': self.tile_index.index.schema + self.tile_index.index.table,
+                'ewkb': sql.Literal(ewkb),
+                'tile': self.tile_index.index.table + self.tile_index.index.field.tile,
+                'index_pk': self.tile_index.index.table + self.tile_index.index.field.pk
+            }
+            query = sql.SQL("""
+            SELECT {features}.*, {tile} AS tile_id
+            FROM {features} JOIN {tile_index} ON {feature_pk} = {index_pk}
+            WHERE st_within({feature_geom}, {ewkb}::geometry)
+            """).format(**query_params)
+        else:
+            query_params = {
+                'tile_boundaries': self.tile_index.boundaries.schema + self.tile_index.boundaries.table,
+                'ewkb': sql.Literal(ewkb),
+                'tile': self.tile_index.boundaries.table + self.tile_index.boundaries.field.tile,
+                'boundary_geom': self.tile_index.boundaries.table + self.tile_index.boundaries.field.geometry
+            }
+            query = sql.SQL("""
+            SELECT {tile} AS tile_id
+            FROM {tile_boundaries}
+            WHERE st_intersects({boundary_geom}, {ewkb}::geometry)
+            """).format(**query_params)
+        return query
+
+    def with_list(self, tiles) -> List:
+        """Select tiles based on a list of tile IDs."""
+        if ['all',] == tiles:
+            log.info("Getting all tiles from the index.")
+            in_index = self.all_in_index()
+        else:
+            log.info("Verifying if the provided tiles are in the index.")
+            in_index = self.tiles_in_index(tiles)
+        if len(in_index) == 0:
+            raise ValueError("None of the provided tiles are present in the"
+                                 " index.")
+        else:
+            return in_index
+
+    def all_in_index(self) -> List[str]:
+        """Get all tile IDs from the tile index."""
+        query_params = {
+            'index_': self.tile_index.boundaries.schema + self.tile_index.boundaries.table,
+            'tile': self.tile_index.boundaries.field.tile.sqlid
+        }
+        query = sql.SQL("""
+        SELECT DISTINCT {tile} FROM {index_}
+        """).format(**query_params)
+        log.debug(self.conn.print_query(query))
+        return [t[0] for t in self.conn.get_query(query)]
+
     def tiles_in_index(self, tiles) -> List[str]:
         """Return the tile IDs that are present in the tile index."""
         query_params = {
             'tiles': sql.Literal(tiles),
-            'index_': self.tile_index.schema + self.tile_index.table,
-            'tile': self.tile_index.field.tile.sqlid
+            'index_': self.tile_index.boundaries.schema + self.tile_index.boundaries.table,
+            'tile': self.tile_index.boundaries.field.tile.sqlid
         }
         query = sql.SQL("""
         SELECT DISTINCT {tile}
@@ -189,106 +217,132 @@ class DbTiles(Tiles):
                         f"they are skipped.")
         return in_index
 
-    def all_in_index(self) -> List[str]:
-        """Get all tile IDs from the tile index."""
-        query_params = {
-            'index_': self.tile_index.schema + self.tile_index.table,
-            'tile': self.tile_index.field.tile.sqlid
-        }
-        query = sql.SQL("""
-        SELECT DISTINCT {tile} FROM {index_}
-        """).format(**query_params)
-        log.debug(self.conn.print_query(query))
-        return [t[0] for t in self.conn.get_query(query)]
 
-
-# FIXME: DbTilesAHN is composed of DbTiles, and it does not inherit from it!
-class DbTilesAHN(DbTiles):
+class DbTilesAHN(Tiles):
     """AHN tiles where the tile index is stored in PostgreSQL, the point cloud
     is stored in files on the file system."""
 
-    def __init__(self, conn: db.Db, elevation_index_schema: db.Schema,
-                 tile_index_schema: db.Schema, features_schema: db.Schema,
-                 output: db.Schema = None):
+    def __init__(self, conn: db.Db, elevation_tiles: DbTiles,
+                 feature_tiles: DbTiles, output: output.Output=None):
         """
-
-        :param elevation_index_schema: Schema of the tile index of the
-            elevation files (point cloud files)
+        :param conn:
+        :param elevation_tiles:
+        :param feature_tiles:
+        :param output:
         """
-        super().__init__(conn=conn, tile_index_schema=tile_index_schema,
-                         features_schema=features_schema, output=output)
-        self.elevation_index_schema = elevation_index_schema
-        self.file_index = None
+        # assert isinstance(conn, db.Db), "conn must be a Db object"
+        # assert isinstance(elevation_tiles, DbTiles), "elevation_tiles must be a DbTiles object"
+        # assert isinstance(feature_tiles, DbTiles), "feature_tiles must be a DbTiles object"
+        super().__init__(output=output)
+        self.conn = conn
+        self.elevation_tiles = elevation_tiles
+        self.feature_tiles = feature_tiles
+        self.elevation_file_index = None # { feature tile ID: [ (matching AHN file path, AHN version), ... ] }
         self.feature_views = None
 
-    def versions(self) -> List[int]:
-        query_params = {
-            'index_': self.elevation_index_schema.schema + self.elevation_index_schema.table,
-            'version': self.elevation_index_schema.field.version.sqlid
-        }
-        query = sql.SQL("""
-        SELECT DISTINCT {version} FROM {index_};
-        """).format(**query_params)
-        log.debug(self.conn.print_query(query))
-        r = []
-        for row in self.conn.get_query(query):
-            try:
-                r.append(int(row[0]))
-            except TypeError or ValueError:
-                pass
-        return r
+    def configure(self, tiles: List[str]=None, extent: str=None,
+                      version: int=None, on_border: bool=False,
+                      directory_mapping: dict=None, tin: bool=False
+                  ):
+            """Prepare the AHN tiles for processing.
 
-    def _version_border(self) -> List:
-        """Return a list of tiles that are on the border between two AHN
-        versions."""
-        query_params = {
-            'tile': self.elevation_index_schema.field.tile.sqlid,
-            'borders': self.elevation_index_schema.schema + self.elevation_index_schema.borders
-        }
-        query = sql.SQL("""
-        SELECT {tile} FROM {borders};
-        """).format(**query_params)
-        log.debug(self.conn.print_query(query))
-        return [row[0] for row in self.conn.get_query(query)]
+            First `tiles` and `extent` are evaluated, then `version` and
+            `on_border`. The arguments `version` and `on_boundary` are mutually exclusive.
 
-    def _version_not_border(self) -> dict:
-        """Return a list of tiles that are not on the border between two AHN
-        versions."""
-        query_params = {
-            'index_': self.elevation_index_schema.schema + self.elevation_index_schema.table,
-            'borders': self.elevation_index_schema.schema + self.elevation_index_schema.borders,
-            'tile': self.elevation_index_schema.field.tile.sqlid
-        }
-        query = sql.SQL("""
-            SELECT 
-                sub.ahn_version,
-                array_agg(sub.a_bladnr) AS tiles
-            FROM
-                (
-                    SELECT
-                        a.{tile} a_bladnr,
-                        b.{tile} b_bladnr,
-                        a.ahn_version
-                    FROM
-                        {index_} a
-                    LEFT JOIN {borders} b ON
-                        a.{tile} = b.{tile}
-                ) sub
-            WHERE 
-                sub.b_bladnr IS NULL
-            GROUP BY sub.ahn_version;
-            """).format(**query_params)
-        log.debug(self.conn.print_query(query))
-        return {key:value for key, value in self.conn.get_query(query)}
-        # return self.conn.get_dict(query)
+            The final list of tiles to process is the intersection of the
+            selected feature tiles AND the elevation tiles for the provided
+            version.
+
+            :param tiles: See :meth:`.DbTiles.configure`
+            :param extent: See :meth:`.DbTiles.configure`
+            :param version: Limit the tiles to AHN provided version. This selection
+                *excludes* the AHN version boundary. If `None` then no limitation.
+            :param on_border: If `True` limit the tiles to the boundary of the two
+                AHN version coverages. If `False`, exclude this boundary area. If
+                `None`, no limitation.
+            """
+            self.feature_views = dict()
+            # Select the tiles of the footprints to be processed with either a
+            # list of tile IDs or a polygon extent
+            self.feature_tiles.configure(tiles=tiles, extent=extent)
+            # Find the available AHN files for each feature tile
+            self.elevation_file_index = dict()
+            elevation_file_paths = self.create_elevation_file_index(directory_mapping)
+            # This below is the meat of this class. It further configures the
+            # tile list by selecting the latest AHN version that is available
+            # on the filesystem
+            if version is None and (on_border is None or on_border is False):
+                for tile in self.feature_tiles.to_process:
+                    elevation_match = self.match_elevation_tile(
+                        feature_tile=tile,
+                        idx_identical=False)
+                    paths = []
+                    for ahn_id, ahn_version in elevation_match.items():
+                        paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+                    self.elevation_file_index[tile] = paths
+                    # Create tile views
+                    self.feature_views[tile] = self.create_tile_view(tile,
+                                                                     tin=tin)
+                del paths, elevation_file_paths, elevation_match
+                log.info(f"{self.__class__.__name__} configuration done.")
+            elif version is not None and on_border is False:
+                versions = self.versions()
+                if version not in versions:
+                    raise ValueError(f"AHN version {version} is not in the index.")
+                else:
+                    tiles_per_version = self.version_not_boundary()
+                    if len(tiles_per_version) > 0:
+                        version_set = set(tiles_per_version[version])
+                        process_set = set(self.feature_tiles.to_process)
+                        self.to_process = list(version_set.intersection(process_set))
+                        for tile in self.feature_tiles.to_process:
+                            elevation_match = self.match_elevation_tile(
+                                feature_tile=tile,
+                                idx_identical=False)
+                            paths = []
+                            for ahn_id, ahn_version in elevation_match.items():
+                                paths.extend((p, ahn_version) for p in
+                                             elevation_file_paths[ahn_id])
+                            self.elevation_file_index[tile] = paths
+                            # Create tile views
+                            self.feature_views[tile] = self.create_tile_view(
+                                tile,
+                                tin=tin)
+                        del paths, elevation_file_paths, elevation_match
+                    else:
+                        log.warning(f"Did not find any feature tiles for "
+                                    f"AHN version {version}")
+                    log.info(f"{self.__class__.__name__} configuration done.")
+            elif on_border:
+                border_set = set(self.version_boundary())
+                process_set = set(self.feature_tiles.to_process)
+                self.to_process = list(border_set.intersection(process_set))
+                for tile in self.feature_tiles.to_process:
+                    elevation_match = self.match_elevation_tile(
+                        feature_tile=tile,
+                        idx_identical=False)
+                    paths = []
+                    for ahn_id, ahn_version in elevation_match.items():
+                        paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+                    self.elevation_file_index[tile] = paths
+                    # Create tile views
+                    self.feature_views[tile] = self.create_tile_view(tile,
+                                                                     tin=tin)
+                del paths, elevation_file_paths, elevation_match
+                log.info(f"{self.__class__.__name__} configuration done.")
+            else:
+                raise AttributeError(
+                    f"Unknown configuration tiles:{tiles}, extent:{extent}, "
+                    f"version:{version}, on_border:{on_border}.")
+
 
     @staticmethod
-    def create_file_index(directory_mapping: dict) -> dict:
+    def create_elevation_file_index(directory_mapping: Mapping) -> dict:
         """Create an index of files in the given directories.
 
         Maps the location of the files to the tile IDs. This assumes that there
         is a tile index, and the content of each tile (the features) are stored
-        in one file per tile. And the file names contain the corresponting
+        in one file per tile. And the file names contain the corresponding
         tile ID.
 
         You can provide the ``directory_mapping`` as a sequence of directory
@@ -320,7 +374,7 @@ class DbTilesAHN(DbTiles):
             directory containing the files of the latest version to ``priority: 1``,
             and thus always the latest version of files will be used for each tile.
 
-        :return: { tile_id: [ path/to/file ] }
+        :return: { tile_id: [ path/to/file, ... ] }
         """
         if not directory_mapping:
             log.debug("directory_mapping is None")
@@ -368,11 +422,99 @@ class DbTilesAHN(DbTiles):
         log.debug(f"File index length: {len(file_index)}")
         return file_index
 
-    def match_feature_tile(self, tile_index: DbTiles,
-                           feature_tile: str, idx_identical: bool=True):
+
+    def versions(self) -> List[int]:
+        """Get the AHN versions from the elevation tile index.
+
+        :returns: List of version numbers
+        """
+        query_params = {
+            'index_': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.table,
+            'version': self.elevation_tiles.tile_index.boundaries.field.version.sqlid
+        }
+        query = sql.SQL("""
+        SELECT DISTINCT {version} FROM {index_};
+        """).format(**query_params)
+        log.debug(self.conn.print_query(query))
+        r = []
+        for row in self.conn.get_query(query):
+            try:
+                r.append(int(row[0]))
+            except TypeError or ValueError:
+                pass
+        return r
+
+    def version_boundary(self) -> List[str]:
+        """Return a list of elevation tile IDs that are on the boundary
+        of two AHN versions.
+
+        :returns: List of elevation tile IDs
+        """
+        query_params = {
+            'tile': self.elevation_tiles.tile_index.boundaries.field.tile.sqlid,
+            'borders': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.borders
+        }
+        query = sql.SQL("""
+        SELECT {tile} FROM {borders};
+        """).format(**query_params)
+        log.debug(self.conn.print_query(query))
+        return [row[0] for row in self.conn.get_query(query)]
+
+    # def feature_tile_per_ahn_version(self)
+    def version_not_boundary(self) -> Mapping[str, List[str]]:
+        """Return a list of feature tile IDs that are not on the boundary of
+        two different AHN versions.
+
+        :returns: { AHN version: [ feature tile IDs ] }
+        """
+        query_params = {
+            'index_': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.table,
+            'boundary': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.borders,
+            'tile': self.elevation_tiles.tile_index.boundaries.field.tile.sqlid,
+            'geom': self.elevation_tiles.tile_index.boundaries.field.geometry.sqlid,
+            'version': self.elevation_tiles.tile_index.boundaries.field.version.sqlid,
+            'features_index': self.feature_tiles.tile_index.boundaries.schema + self.feature_tiles.tile_index.boundaries.table,
+            'ft_geom': self.feature_tiles.tile_index.boundaries.field.geometry.sqlid,
+            'ft_tile': self.feature_tiles.tile_index.boundaries.field.tile.sqlid,
+        }
+
+        query = sql.SQL("""
+        WITH ahn_versions AS (
+            SELECT
+                sub.ahn_version,
+                ST_UnaryUnion(ST_Collect(sub.geom)) geom
+            FROM
+                (
+                    SELECT
+                        a.{tile} a_bladnr,
+                        b.{tile} b_bladnr,
+                        a.{version} ahn_version,
+                        a.{geom} geom
+                    FROM
+                        {index_} a
+                    LEFT JOIN {boundary} b ON
+                        a.{tile} = b.{tile}
+                ) sub
+            WHERE
+                sub.b_bladnr IS NULL
+            GROUP BY sub.ahn_version
+        )
+        SELECT 
+            ahn_versions.ahn_version, 
+            array_agg(bt.{ft_tile}) AS tiles
+        FROM ahn_versions, {features_index} bt 
+        WHERE ST_Relate(ahn_versions.geom, bt.{ft_geom}, '212101212')
+           OR ST_Covers(ahn_versions.geom, bt.{ft_geom})
+        GROUP BY ahn_versions.ahn_version;
+        """).format(**query_params)
+
+        log.debug(self.conn.print_query(query))
+        return {key:value for key, value in self.conn.get_query(query)}
+
+    def match_elevation_tile(self, feature_tile: str,
+                             idx_identical: bool = True):
         """Find the elevation tiles that match the footprint tile.
 
-        :param tile_index: The tile
         :param feature_tile: ID of the feature tile
         :param idx_identical: If **True**, elevation and feature tiles are
             matched on IDs without any spatial comparison. If **False**,
@@ -380,19 +522,19 @@ class DbTilesAHN(DbTiles):
         """
         if idx_identical:
             query_params = {
-                'index_': self.tile_index.schema + self.tile_index.table,
-                'table_': self.tile_index.table.sqlid,
-                'tile_field': self.tile_index.field.tile.sqlid,
-                'tile': sql.Literal(feature_tile)
+                'elevation_boundaries': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.table,
+                'elevation_tiles': self.elevation_tiles.tile_index.boundaries.field.tile.sqlid,
+                'elevation_version': self.elevation_tiles.tile_index.boundaries.field.version.sqlid,
+                'feature_tile': sql.Literal(feature_tile)
             }
             query = sql.SQL("""
-                SELECT
-                    {tile_field}
-                    ,{table_}.ahn_version
-                FROM
-                    {index_}
-                WHERE {tile_field} = {tile};
-                """).format(**query_params)
+            SELECT
+                {elevation_tiles}
+                ,{elevation_version}
+            FROM
+                {elevation_boundaries}
+            WHERE {elevation_tiles} = {feature_tile};
+            """).format(**query_params)
             log.debug(self.conn.print_query(query))
             resultset = self.conn.get_query(query)
             tiles = {}
@@ -406,10 +548,39 @@ class DbTilesAHN(DbTiles):
                 else:
                     log.warning(f"Tile {tile_id} ahn_version is NULL")
         else:
-           raise NotImplementedError("Only identical feature and elevation tiles"
-                                     " are implemented. "
-                                     "See bag3d.batch3dfier.find_pc_tiles() for "
-                                     "implementing this path.")
+            query_params = {
+                'elevation_boundaries': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.table,
+                'elevation_tiles': self.elevation_tiles.tile_index.boundaries.field.tile.sqlid,
+                'elevation_version': self.elevation_tiles.tile_index.boundaries.field.version.sqlid,
+                'elevation_geom': self.elevation_tiles.tile_index.boundaries.field.geometry.sqlid,
+                'features_boundaries': self.feature_tiles.tile_index.boundaries.schema + self.feature_tiles.tile_index.boundaries.table,
+                'features_tiles': self.feature_tiles.tile_index.boundaries.field.tile.sqlid,
+                'features_geom': self.feature_tiles.tile_index.boundaries.field.geometry.sqlid,
+                'feature_tile': sql.Literal(feature_tile),
+            }
+
+            query = sql.SQL("""
+            SELECT
+                e.{elevation_tiles}
+                ,e.{elevation_version}
+            FROM
+               {elevation_boundaries} e
+               ,{features_boundaries} f
+            WHERE f.{features_tiles} = {feature_tile}
+              AND ST_Intersects( e.{elevation_geom}, f.{features_geom} );
+            """).format(**query_params)
+            log.debug(self.conn.print_query(query))
+            resultset = self.conn.get_query(query)
+            tiles = {}
+            for tile in resultset:
+                tile_id = tile[0].lower()
+                if tile[1]:
+                    if id not in tiles:
+                        tiles[tile_id] = int(tile[1])
+                    else:
+                        log.error(f"Tile ID {tile_id} is duplicate")
+                else:
+                    log.warning(f"Tile {tile_id} ahn_version is NULL")
         return tiles
 
 
@@ -435,8 +606,8 @@ class DbTilesAHN(DbTiles):
         if tin:
             query_params = {
                 'view': sql.Identifier(view),
-                'feature_table': self.features.schema + self.features.table,
-                'uniqueid': self.features.field.uniqueid.sqlid,
+                'feature_table': self.feature_tiles.tile_index.boundaries.schema + self.feature_tiles.tile_index.boundaries.table,
+                'uniqueid': self.feature_tiles.tile_index.boundaries.field.uniqueid.sqlid,
                 'tile': sql.Literal(feature_tile)
             }
             query = sql.SQL("""
@@ -446,12 +617,12 @@ class DbTilesAHN(DbTiles):
             log.debug(self.conn.print_query(query))
         else:
             query_params = {
-                'view': sql.Identifier(self.elevation_index_schema.schema.string, view),
-                'features': self.features.schema + self.features.table,
-                'f_pk': self.features.field.pk.sqlid,
-                'features_index': self.elevation_index_schema.schema + self.elevation_index_schema.table,
-                'fi_pk': self.elevation_index_schema.field.pk.sqlid,
-                'fi_tileid': self.elevation_index_schema.field.tile.sqlid,
+                'view': sql.Identifier(self.elevation_tiles.tile_index.boundaries.schema.string, view),
+                'features': self.feature_tiles.features.schema + self.feature_tiles.features.table,
+                'f_pk': self.feature_tiles.features.field.pk.sqlid,
+                'features_index': self.elevation_tiles.tile_index.boundaries.schema + self.elevation_tiles.tile_index.boundaries.table,
+                'fi_pk': self.elevation_tiles.tile_index.boundaries.field.pk.sqlid,
+                'fi_tileid': self.elevation_tiles.tile_index.boundaries.field.tile.sqlid,
                 'tile': sql.Literal(feature_tile)
             }
             query = sql.SQL("""
@@ -468,77 +639,3 @@ class DbTilesAHN(DbTiles):
             log.error(f"{e.pgcode}\t{e.pgerror}")
             return None
         return view
-
-
-    def configure(self, tiles: List[str] = None, extent=None,
-                      version: int=None, on_border: bool=False,
-                      directory_mapping: dict=None, tin: bool=False
-                  ):
-            """Prepare the AHN tiles for processing.
-
-            First `tiles` and `extent` are evaluated, then `version` and
-            `on_border`. The arguments `version` and `border` are mutually exclusive
-
-            :param tiles: See :meth:`.DbTiles.configure`
-            :param extent: See :meth:`.DbTiles.configure`
-            :param version: Limit the tiles to AHN provided version. This selection
-                *excludes* the AHN version border. If `None` then no limitation.
-            :param on_border: If `True` limit the tiles to the border of the two
-                AHN version coverages. If `False`, exclude this border area. If
-                `None`, no limitation.
-            """
-            super().configure(tiles=tiles, extent=extent)
-            if version is None and (on_border is None or on_border is False):
-                file_index = self.create_file_index(directory_mapping)
-                # self.file_index = {tile: file
-                #                    for tile, file in file_index.items()
-                #                    if tile in self.to_process}
-                self.file_index = dict()
-                self.feature_views = dict()
-                for tile, file in file_index.items():
-                    if tile in self.to_process:
-                        self.file_index[tile] = file
-                        self.feature_views[tile] = self.create_tile_view(tile,
-                                                                         tin=tin)
-                log.info(f"{self.__class__.__name__} configuration done.")
-            elif version is not None and on_border is False:
-                versions = self.versions()
-                if version not in versions:
-                    raise ValueError(f"Version {version} is not in the index.")
-                else:
-                    tiles_per_version = self._version_not_border()
-                    version_set = set(tiles_per_version[version])
-                    process_set = set(self.to_process)
-                    self.to_process = list(version_set.intersection(process_set))
-                    file_index = self.create_file_index(directory_mapping)
-                    # self.file_index = {tile: file
-                    #                    for tile, file in file_index.items()
-                    #                    if tile in self.to_process}
-                    self.file_index = dict()
-                    self.feature_views = dict()
-                    for tile, file in file_index.items():
-                        if tile in self.to_process:
-                            self.file_index[tile] = file
-                            self.feature_views[tile] = self.create_tile_view(
-                                tile, tin=tin)
-                    log.info(f"{self.__class__.__name__} configuration done.")
-            elif on_border:
-                border_set = set(self._version_border())
-                process_set = set(self.to_process)
-                self.to_process = list(border_set.intersection(process_set))
-                file_index = self.create_file_index(directory_mapping)
-                # self.file_index = {tile: file
-                #                    for tile, file in file_index.items()
-                #                    if tile in self.to_process}
-                self.file_index = dict()
-                self.feature_views = dict()
-                for tile, file in file_index.items():
-                    if tile in self.to_process:
-                        self.file_index[tile] = file
-                        self.feature_views[tile] = self.create_tile_view(tile,
-                                                                         tin=tin)
-                log.info(f"{self.__class__.__name__} configuration done.")
-            else:
-                raise AttributeError(
-                    f"Unknown configuration tiles:{tiles}, extent:{extent}, "
-                    f"version:{version}, on_border:{on_border}.")

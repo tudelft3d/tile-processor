@@ -3,17 +3,24 @@
 """Output handling."""
 
 import os
-import shutil
 import logging
+from abc import ABC, abstractmethod
 
 
 log = logging.getLogger(__name__)
 
-class DirOutput:
-    """Output to a directory. Creates `path` if not exists."""
-
+class Output(ABC):
     def __init__(self, path):
         self.path = path
+
+    @abstractmethod
+    def add(self, path):
+        """Join the input with self and return a path."""
+        pass
+
+
+class DirOutput(Output):
+    """Output to a directory. Creates `path` if not exists."""
 
     @property
     def path(self):

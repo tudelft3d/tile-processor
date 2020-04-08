@@ -96,44 +96,71 @@ class ExampleDbWorker:
 class ThreedfierWorker:
     """Runs 3dfier."""
 
-    def create_yaml(self, tile, feature_tiles, ahn_match):
+    def create_yaml(self, tile, dbtilesahn, ahn_paths):
         """Create the YAML configuration for 3dfier."""
         ahn_file = ""
-        ahn_path = feature_tiles.file_index[tile]
-        if len(ahn_path) > 1:
-            for p in ahn_path:
-                ahn_file += "- " + p + "\n" + "      "
+        if len(ahn_paths) > 1:
+            for p,v in ahn_paths:
+                ahn_file += "- " + p + "\n" + "              "
         else:
-            ahn_file += "- " + ahn_path[0]
-        ahn_version = set([ahn_match[tile]])
+            ahn_file += "- " + ahn_paths[0]
+        ahn_version = set([version for path,version in ahn_paths])
 
-        if feature_tiles.conn.password:
+        if dbtilesahn.conn.password:
             d = 'PG:dbname={dbname} host={host} port={port} user={user} password={pw} schemas={schema_tiles} tables={bag_tile}'
-            dns = d.format(dbname=feature_tiles.conn.dbname,
-                           host=feature_tiles.conn.host,
-                           port=feature_tiles.conn.port,
-                           user=feature_tiles.conn.user,
-                           pw=feature_tiles.conn.password,
-                           schema_tiles=feature_tiles.features.schema.string,
-                           bag_tile=feature_tiles.features.table.string)
+            dns = d.format(dbname=dbtilesahn.conn.dbname,
+                           host=dbtilesahn.conn.host,
+                           port=dbtilesahn.conn.port,
+                           user=dbtilesahn.conn.user,
+                           pw=dbtilesahn.conn.password,
+                           schema_tiles=dbtilesahn.feature_tiles.features.schema.string,
+                           bag_tile=dbtilesahn.feature_tiles.features.table.string)
         else:
             d = 'PG:dbname={dbname} host={host} port={port} user={user} schemas={schema_tiles} tables={bag_tile}'
-            dns = d.format(dbname=feature_tiles.conn.dbname,
-                           host=feature_tiles.conn.host,
-                           port=feature_tiles.conn.port,
-                           user=feature_tiles.conn.user,
-                           schema_tiles=feature_tiles.features.schema.string,
-                           bag_tile=feature_tiles.features.table.string)
+            dns = d.format(dbname=dbtilesahn.conn.dbname,
+                           host=dbtilesahn.conn.host,
+                           port=dbtilesahn.conn.port,
+                           user=dbtilesahn.conn.user,
+                           schema_tiles=dbtilesahn.feature_tiles.features.schema.string,
+                           bag_tile=dbtilesahn.feature_tiles.features.table.string)
 
-        if ahn_version == set([2]):
+        if ahn_version == {2}:
             las_building = [1]
-        elif ahn_version == set([3]):
+        elif ahn_version == {3}:
             las_building = [6]
-        elif ahn_version == set([2, 3]):
+        elif ahn_version == {2, 3}:
             las_building = [1, 6]
         else:
             las_building = None
-        uniqueid = feature_tiles.features.field.uniqueid.string
+        uniqueid = dbtilesahn.feature_tiles.features.field.uniqueid.string
+
+        _d = f"""
+        input_polygons:
+          - datasets:
+              - "{dns}"
+            uniqueid: {uniqueid}
+            lifting: Building
+
+        lifting_options:
+          Building:
+            roof:
+              height: percentile-95
+              use_LAS_classes: {las_building}
+            ground:
+              height: percentile-10
+              use_LAS_classes: [2]
+
+        input_elevation:
+          - datasets:
+              {ahn_file}
+            omit_LAS_classes:
+            thinning: 0
+
+        options:
+          building_radius_vertex_elevation: 0.5
+          radius_vertex_elevation: 0.5
+          threshold_jump_edges: 0.5
+        """
 
         yml = yaml.load(f"""
         input_polygons:
@@ -166,17 +193,23 @@ class ThreedfierWorker:
 
     def execute(self, tile, tiles, path_executable, monitor_log, monitor_interval,
                 **ignore) -> bool:
+        """
+
+        :param tile:
+        :param tiles: DbTilesAHN object
+        :param path_executable:
+        :param monitor_log:
+        :param monitor_interval:
+        :param ignore:
+        :return:
+        """
         log.debug(f"Running {self.__class__.__name__}:{tile}")
-        ahn_match = tiles.match_feature_tile(feature_tile=tile,
-                                             tile_index=tiles,
-                                             idx_identical=True)
-        if tiles.file_index[tile] is None or len(tiles.file_index[tile]) == 0:
-            log.debug(f"Pointcloud file(s) not available for tile {tile}")
+        if len(tiles.elevation_file_index[tile]) == 0:
+            log.debug(f"Elevation files are not available for tile {tile}")
             return False
         else:
-            yml = self.create_yaml(tile=tile,
-                                   feature_tiles=tiles,
-                                   ahn_match=ahn_match)
+            yml = self.create_yaml(tile=tile, dbtilesahn=tiles,
+                                   ahn_paths=tiles.elevation_file_index[tile])
             yml_path = tiles.output.add(f"{tile}.yml")
             try:
                 with open(yml_path, "w") as fo:
@@ -277,8 +310,8 @@ class ThreedfierTINWorker:
                 monitor_interval,
                 **ignore) -> bool:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
-        ahn_match = tiles.match_feature_tile(feature_tile=tile,
-                                             idx_identical=True)
+        ahn_match = tiles.match_elevation_tile(feature_tile=tile,
+                                               idx_identical=True)
         if tiles.file_index[tile] is None or len(tiles.file_index[tile]) == 0:
             log.debug(f"Pointcloud file(s) not available for tile {tile}")
             return False
@@ -369,9 +402,9 @@ class Geoflow:
         :return: Success or Failiure
         """
         log.debug(f"Running {self.__class__.__name__}:{tile}")
-        pc_match = tiles.match_feature_tile(feature_tile=tile,
-                                            idx_identical=False)
-        ahn_file = tiles.file_index[tile][0]
+        pc_match = tiles.match_elevation_tile(feature_tile=tile,
+                                              idx_identical=False)
+        ahn_file = tiles.elevation_file_index[tile][0]
         _json = self.create_configuration(
             tile=tile, feature_tiles=tiles, pc_match=pc_match,
             path_config=path_config)

@@ -8,7 +8,7 @@ import pytest
 import yaml
 from pathlib import Path
 from io import StringIO
-from tile_processor import db
+from tile_processor import db, output
 
 #------------------------------------ add option for running the full test set
 def pytest_addoption(parser):
@@ -36,7 +36,7 @@ def pytest_collection_modifyitems(config, items):
 
 #-------------------------------------------------------------------- testing DB
 @pytest.fixture(scope="session")
-def bag3d_db(request):
+def bag3d_db():
     dbs = db.Db(dbname='bag3d_db', host='localhost', port=5590,
                 user='bag3d_tester', password='bag3d_test')
     yield dbs
@@ -56,6 +56,12 @@ def output_dir(data_dir):
     outdir.mkdir(exist_ok=True)
     yield outdir
 
+@pytest.fixture(scope='function')
+def output_obj(data_dir):
+    outdir = Path(data_dir / 'output')
+    outdir.mkdir(exist_ok=True)
+    return output.DirOutput(path=outdir)
+
 @pytest.fixture('session')
 def root_dir():
     yield os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
@@ -66,10 +72,27 @@ def package_dir(root_dir):
 
 ## Configurations
 
-@pytest.fixture(scope='function')
-def cfg_bag3d(data_dir):
+@pytest.fixture(scope='session',
+                params=[('bag_tiles','bag_index'),
+                        ('bag_tiles_identical', 'bag_index_identical')],
+                ids=['different_tiles',
+                     'identical_tiles']
+                )
+def cfg_bag3d(data_dir, request):
+    """The YAML configuration file that is used for processing tiles with
+    AHN elevation.
+    bag_tiles: feature tiles have a different extent than elevation tiles
+    bag_tiles_identical: features tiles have an identical extent to the
+        elevation tiles
+    """
+    tile_boundaries = 0
+    tile_index = 1
     with open(data_dir / 'bag3d_config.yml', 'r') as fo:
-        yield yaml.load(fo, Loader=yaml.FullLoader)
+        cfg = yaml.load(fo, Loader=yaml.FullLoader)
+        cfg['features_tiles']['boundaries']['table'] = request.param[tile_boundaries]
+        cfg['features_tiles']['index']['table'] = request.param[
+            tile_index]
+        return cfg
 
 @pytest.fixture(scope='function')
 def cfg_bag3d_path(data_dir):

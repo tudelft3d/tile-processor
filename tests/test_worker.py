@@ -9,7 +9,7 @@ import pytest
 
 from tile_processor import controller
 
-@pytest.mark.integration_test
+# @pytest.mark.integration_test
 class TestThreedfier:
     def test_for_debug(self, cfg_ahn_abs):
         """Running 3dfier"""

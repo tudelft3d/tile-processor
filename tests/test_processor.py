@@ -12,7 +12,7 @@ from tile_processor import tileconfig, output
 @pytest.fixture('module')
 def generate_sample_processor():
     def _generate(worker):
-        tiles = tileconfig.Tiles(output = output.DirOutput('/tmp'))
+        tiles = tileconfig.FileTiles(output = output.DirOutput('/tmp'))
         tiles.to_process = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
         args = {'arg1': 'argument 1', 'arg2': 'argument 2'}
         expectation = {'tile_1': True,
