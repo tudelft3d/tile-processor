@@ -6,7 +6,7 @@ import sys
 
 import click
 
-from tile_processor import recorder, controller
+from tile_processor import recorder, controller, worker
 
 
 @click.group()
@@ -46,11 +46,10 @@ def main(ctx, verbose, quiet, monitor):
 
 @click.command('run')
 @click.argument('controller_key',
-                type=click.Choice(['AHN', 'AHNtin', 'Example'],
+                type=click.Choice(controller.factory._controllers,
                                   case_sensitive=False))
 @click.argument('worker_key',
-                type=click.Choice(['3dfier', '3dfierTIN', 'LoD13', 'Example',
-                                   'ExampleDb'],
+                type=click.Choice(worker.factory._executors,
                                   case_sensitive=False))
 @click.argument('configuration', type=click.File('r'))
 @click.argument('tiles', type=str, nargs=-1)

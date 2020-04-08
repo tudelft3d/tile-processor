@@ -10,7 +10,7 @@ features:
     table: pandactueelbestaand
     field:
         pk: gid
-        geometry: geom
+        geometry: geovlak
         uniqueid: identificatie
 
 elevation:
@@ -25,23 +25,31 @@ elevation:
                 file_pattern: "m-{tile}.laz"
                 priority: 3
 
-features_index:
-    schema: tile_index
-    table: bag_index
-    field:
-        pk: gid
-        geometry: geom
-        tile: unit
+features_tiles:
+    boundaries:
+        schema: tile_index
+        table: bag_tiles
+        field:
+            pk: id
+            geometry: geom
+            tile: unit
+    index:
+        schema: tile_index
+        table: bag_index
+        field:
+            pk: gid
+            tile: unit
 
-elevation_index:
-    schema: tile_index
-    table: ahn_index
-    borders: border_tiles
-    field:
-        pk: gid
-        geometry: geom
-        tile: tile
-        version: ahn_version
+elevation_tiles:
+    boundaries:
+        schema: tile_index
+        table: ahn_tiles
+        borders: ahn_tiles_border
+        field:
+            pk: id
+            geometry: geom
+            tile: unit
+            version: ahn_version
 
 output:
     dir: /tmp/3DBAG

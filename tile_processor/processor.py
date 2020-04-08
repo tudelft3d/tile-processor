@@ -75,7 +75,7 @@ class ThreadProcessor:
         log.info(f"Configured {self.__class__.__name__}:{self.name}")
         # log.debug(pformat(vars(self)))
 
-    def process(self, restart: int = 3) -> List[str]:
+    def process(self, restart: int = 0) -> List[str]:
         """Runs the workers asynchronously, using a `ThreadPoolExecutor
         <https://docs.python.org/3.6/library/concurrent.futures.html#threadpoolexecutor>`_
         and restarts the tiles that failed.

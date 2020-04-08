@@ -10,26 +10,28 @@ features:
     table: pandactueelbestaand
     field:
         pk: gid
-        geometry: geom
+        geometry: geovlak
         uniqueid: identificatie
 
-features_index:
-    schema: bag_tiles
-    table: index
-    field:
-        pk: gid
-        geometry: geom
-        tile: tile
+features_tiles:
+    boundaries:
+        schema: tile_index
+        table: bag_index_identical
+        field:
+            pk: gid
+            geometry: geom
+            tile: unit
 
-elevation_index:
-    schema: tile_index
-    table: ahn_index
-    borders: border_tiles
-    field:
-        pk: id
-        geometry: geom
-        tile: bladnr
-        version: ahn_version
+elevation_tiles:
+    boundaries:
+        schema: tile_index
+        table: ahn_tiles
+        borders: ahn_tiles_border
+        field:
+            pk: id
+            geometry: geom
+            tile: unit
+            version: ahn_version
 
 output:
     dir: /tmp/3DBAG
