@@ -12,17 +12,14 @@ import os
 import logging
 from locale import getpreferredencoding
 from subprocess import PIPE
-from time import sleep
-from typing import Sequence, Union, List
-from pathlib import Path
-import json
+from typing import Sequence, List
+from time import time
+
 
 from psutil import Popen
 import yaml
-import toml
 
 from tile_processor.tileconfig import DbTilesAHN
-from tile_processor.output import DbOutput, DirOutput
 
 log = logging.getLogger(__name__)
 
@@ -472,30 +469,32 @@ def run_subprocess(
         if shell:
             command = cmd
         log.debug(f"Tile {tile_id} command: {command}")
+        start = time()
         popen = Popen(command, shell=shell, stderr=PIPE, stdout=PIPE)
         if monitor_log is not None:
-            while True:
-                sleep(monitor_interval)
-                monitor_log.info(
-                    f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}"
-                    f"\t{popen.cpu_times().system}\t{popen.memory_info().rss}"
-                )
-                return_code = popen.poll()
-                if return_code is not None:
-                    break
+            pass
+            # while True:
+            #     sleep(monitor_interval)
+            #     monitor_log.info(
+            #         f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}"
+            #         f"\t{popen.cpu_times().system}\t{popen.memory_info().rss}"
+            #     )
+            #     return_code = popen.poll()
+            #     if return_code is not None:
+            #         break
         stdout, stderr = popen.communicate()
         err = stderr.decode(getpreferredencoding(do_setlocale=True))
         out = stdout.decode(getpreferredencoding(do_setlocale=True))
         popen.wait()
-        log.debug(f"Tile {tile_id} stdout: {out}")
-        log.debug(f"Tile {tile_id} stderr: {err}")
+        finish = time()
+        log.info(f"Tile {tile_id} finished in {(finish-start)/60} minutes")
         if popen.returncode != 0 or "error" in err.lower():
             log.error(
                 f"Tile {tile_id} process returned with non-zero exit "
-                f"code {popen.returncode}"
+                f"code {popen.returncode}. Rerun in debug mode to see the stdout and stderr."
             )
-            log.error(f"Tile {tile_id} err: \n{out}")
-            log.error(f"Tile {tile_id} err: \n{err}")
+            log.debug(f"Tile {tile_id} stdout: \n{out}")
+            log.debug(f"Tile {tile_id} stderr: \n{err}")
             return False
         else:
             return True

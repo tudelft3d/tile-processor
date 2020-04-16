@@ -58,51 +58,6 @@ class TestController:
         assert "database" in cfg["config"]
 
 
-@pytest.mark.integration_test
-class TestExample:
-    def test_example(self, data_dir):
-        tiles = ["25gn1_2", "25gn1_7", "25gn1_6"]
-        threads = 3
-        fp = os.path.join(data_dir, "exampledb_config.yml")
-        configuration = open(fp, "r", encoding="utf-8")
-        ctrl = controller.factory.create(
-            "Example",
-            configuration=configuration,
-            threads=threads,
-            monitor_log=None,
-            monitor_interval=None,
-        )
-        ctrl.configure(
-            tiles=tiles, processor_key="threadprocessor", worker_key="Example"
-        )
-        ctrl.run()
-        results = ctrl.run()
-        for part, failed in results.items():
-            assert len(failed) == 0
-
-    def test_exampledb(self, data_dir):
-        tiles = [
-            "all",
-        ]
-        threads = 3
-        fp = os.path.join(data_dir, "exampledb_config.yml")
-        configuration = open(fp, "r", encoding="utf-8")
-        ctrl = controller.factory.create(
-            "Example",
-            configuration=configuration,
-            threads=threads,
-            monitor_log=None,
-            monitor_interval=None,
-        )
-        ctrl.configure(
-            tiles=tiles, processor_key="threadprocessor", worker_key="ExampleDb"
-        )
-        ctrl.run()
-        results = ctrl.run()
-        for part, failed in results.items():
-            assert len(failed) == 0
-
-
 class TestAHN:
     @pytest.mark.parametrize("worker_key", worker.factory._executors)
     def test_configure(self, cfg_ahn_abs, worker_key):

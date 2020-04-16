@@ -6,9 +6,53 @@
 """Testing the worker module and the various Workers."""
 
 import pytest
+from pathlib import Path
 
-from tile_processor import controller
+from tile_processor import controller, recorder
 
+#@pytest.mark.integration_test
+class TestExample:
+    def test_example(self, data_dir):
+        tiles = ["25gn1_2", "25gn1_7", "25gn1_6"]
+        threads = 3
+        fp = Path(data_dir) / "exampledb_config.yml"
+        configuration = fp.open("r", encoding="utf-8")
+        ctrl = controller.factory.create(
+            "Example",
+            configuration=configuration,
+            threads=threads,
+            monitor_log=recorder.configure_ressource_logging(),
+            monitor_interval=60,
+        )
+        ctrl.configure(
+            tiles=tiles, processor_key="threadprocessor", worker_key="Example"
+        )
+        ctrl.run()
+        results = ctrl.run()
+        for part, failed in results.items():
+            assert len(failed) == 0
+
+    def test_exampledb(self, data_dir):
+        tiles = [
+            "all",
+        ]
+        threads = 3
+        fp = Path(data_dir) / "exampledb_config.yml"
+        configuration = fp.open("r", encoding="utf-8")
+        ctrl = controller.factory.create(
+            "Example",
+            configuration=configuration,
+            threads=threads,
+            monitor_log=None,
+            monitor_interval=None,
+        )
+        ctrl.configure(
+            tiles=tiles, processor_key="threadprocessor", worker_key="ExampleDb"
+        )
+        ctrl.run()
+        results = ctrl.run()
+        for part, failed in results.items():
+            assert len(failed) == 0
 
 @pytest.mark.integration_test
 class TestThreedfier:
@@ -31,11 +75,11 @@ class TestThreedfier:
         threedfier_controller.run()
 
 
-@pytest.mark.integration_test
+#@pytest.mark.integration_test
 class TestGeoflow:
     def test_for_debug(self, cfg_ahn_geof):
         """Running LoD1.3 reconstruction"""
-        threads = 1
+        threads = 2
         tiles = [
             "all",
         ]
@@ -43,8 +87,8 @@ class TestGeoflow:
             "AHN",
             configuration=cfg_ahn_geof,
             threads=threads,
-            monitor_log=None,
-            monitor_interval=None,
+            monitor_log=recorder.configure_ressource_logging(),
+            monitor_interval=10,
         )
         lod13_controller.configure(
             tiles=tiles, processor_key="threadprocessor", worker_key="LoD13"

@@ -3,6 +3,7 @@
 """Console script for tile_processor."""
 import logging
 import sys
+from time import time
 
 import click
 
@@ -66,6 +67,7 @@ def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
     logger = ctx.obj["log"]
     logger.debug(f"Controller key: {controller_key}")
     logger.debug(f"Worker key: {worker_key}")
+    start = time()
     ctrl = controller.factory.create(
         controller_key,
         configuration=configuration,
@@ -77,6 +79,8 @@ def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
         tiles=list(tiles), processor_key="threadprocessor", worker_key=worker_key
     )
     ctrl.run()
+    finish = time()
+    logger.info(f"Tile-processor completed in {(finish-start)/60} minutes")
     return 0
 
 
