@@ -7,6 +7,7 @@ processing logic.
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List
+from pprint import pformat
 
 log = logging.getLogger(__name__)
 
@@ -45,12 +46,14 @@ class ThreadProcessor:
         self.tiles = tiles
         self.worker = None
 
-    def configure(self,
-                  threads: int,
-                  monitor_log: logging.Logger,
-                  monitor_interval: int,
-                  worker,
-                  config: dict):
+    def configure(
+        self,
+        threads: int,
+        monitor_log: logging.Logger,
+        monitor_interval: int,
+        worker,
+        config: dict,
+    ):
         """Configure the Processor.
 
         :param monitor_interval: Monitoring interval in seconds
@@ -63,17 +66,20 @@ class ThreadProcessor:
             :meth:`~.worker.ThreedfierWorker.execute` callable, and the
             class instance.
         """
-        log.debug(f"Output directory: {self.tiles.output.path}")
-        config['tiles'] = self.tiles
+        if self.tiles.output.dir:
+            log.debug(f"Output directory: {self.tiles.output.dir.path}")
+        if self.tiles.output.db:
+            log.debug(f"Output database: {self.tiles.output.db.dsn}")
+        config["tiles"] = self.tiles
         self.worker_cfg = config
         self.cfg = {
-            'threads': threads,
-            'monitor_log': monitor_log,
-            'monitor_interval': monitor_interval
+            "threads": threads,
+            "monitor_log": monitor_log,
+            "monitor_interval": monitor_interval,
         }
         self.worker = worker
         log.info(f"Configured {self.__class__.__name__}:{self.name}")
-        # log.debug(pformat(vars(self)))
+        log.debug(pformat(vars(self)))
 
     def process(self, restart: int = 0) -> List[str]:
         """Runs the workers asynchronously, using a `ThreadPoolExecutor
@@ -85,18 +91,18 @@ class ThreadProcessor:
         """
         log.info(f"Running {self.__class__.__name__}:{self.name}")
         proc_result = self._process()
-        failed_tiles = [tile for tile, result in proc_result
-                        if result is False]
+        failed_tiles = [tile for tile, result in proc_result if result is False]
         _restart = 0
         while _restart < restart:
             if failed_tiles is not None and len(failed_tiles) > 0:
                 _restart += 1
-                log.info(f"Restarting {self.__class__.__name__}:{self.name} "
-                         f"with {failed_tiles}")
+                log.info(
+                    f"Restarting {self.__class__.__name__}:{self.name} "
+                    f"with {failed_tiles}"
+                )
                 self.tiles.to_process = failed_tiles
                 proc_result = self._process()
-                failed_tiles = [tile for tile, result in proc_result
-                                if result is False]
+                failed_tiles = [tile for tile, result in proc_result if result is False]
             else:
                 break
         log.info(f"Done {self.__class__.__name__}:{self.name}")
@@ -108,12 +114,13 @@ class ThreadProcessor:
 
         :return: Yields the results from the worker.
         """
-        with ThreadPoolExecutor(max_workers=self.cfg['threads']) as executor:
+        with ThreadPoolExecutor(max_workers=self.cfg["threads"]) as executor:
             future_to_tile = {}
             for tile in self.tiles.to_process:
-                self.worker_cfg['tile'] = tile
-                future_to_tile[executor.submit(
-                    self.worker, **self.cfg, **self.worker_cfg)] = tile
+                self.worker_cfg["tile"] = tile
+                future_to_tile[
+                    executor.submit(self.worker, **self.cfg, **self.worker_cfg)
+                ] = tile
             for future in as_completed(future_to_tile):
                 tile = future_to_tile[future]
                 try:
@@ -127,4 +134,4 @@ class ThreadProcessor:
 
 
 factory = ParallelProcessorFactory()
-factory.register_processor('threadprocessor', ThreadProcessor)
+factory.register_processor("threadprocessor", ThreadProcessor)

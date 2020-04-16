@@ -20,16 +20,16 @@ class Db(object):
     :raise: :class:`psycopg2.OperationalError`
     """
 
-    def __init__(self, dbname, host, port, user, password=None):
+    def __init__(self, dbname, host, port, user, password=None, schema=None):
         self.dbname = dbname
         self.host = host
         self.port = port
         self.user = user
         self.password = password
+        self.schema = schema
         try:
             self.conn = psycopg2.connect(
-                dbname=dbname, host=host, port=port, user=user,
-                password=password
+                dbname=dbname, host=host, port=port, user=user, password=password
             )
             log.debug(f"Opened connection to {self.conn.get_dsn_parameters()}")
         except psycopg2.OperationalError:
@@ -53,8 +53,7 @@ class Db(object):
     def get_dict(self, query: psycopg2.sql.Composable) -> dict:
         """DB query where the results need to return as a dictionary."""
         with self.conn:
-            with self.conn.cursor(
-                cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
                 cur.execute(query)
                 return cur.fetchall()
 
@@ -63,29 +62,29 @@ class Db(object):
         """
 
         def repl(matchobj):
-            if matchobj.group(0) == '    ':
-                return ' '
+            if matchobj.group(0) == "    ":
+                return " "
             else:
-                return ' '
+                return " "
 
         s = query.as_string(self.conn).strip()
-        return re.sub(r'[\n    ]{1,}', repl, s)
+        return re.sub(r"[\n    ]{1,}", repl, s)
 
     def vacuum(self, schema: str, table: str):
         """Vacuum analyze a table."""
-        self.conn.set_isolation_level(
-            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         schema = psycopg2.sql.Identifier(schema)
         table = psycopg2.sql.Identifier(table)
-        query = psycopg2.sql.SQL("""
+        query = psycopg2.sql.SQL(
+            """
         VACUUM ANALYZE {schema}.{table};
-        """).format(schema=schema, table=table)
+        """
+        ).format(schema=schema, table=table)
         self.send_query(query)
 
     def vacuum_full(self):
         """Vacuum analyze the whole database."""
-        self.conn.set_isolation_level(
-            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
         query = psycopg2.sql.SQL("VACUUM ANALYZE;")
         self.send_query(query)
 
@@ -96,7 +95,8 @@ class Db(object):
     def get_fields(self, schema, table):
         """List the fields in a table."""
         query = sql.SQL("SELECT * FROM {s}.{t} LIMIT 0;").format(
-            s=sql.Identifier(schema), t=sql.Identifier(table))
+            s=sql.Identifier(schema), t=sql.Identifier(table)
+        )
         cols = self.get_query(query)
         yield [c[0] for c in cols]
 
@@ -108,6 +108,7 @@ class Db(object):
 
 def identifier(relation_name):
     """Property factory for returning a :class:`psycopg2.sql.Identifier`."""
+
     def id_getter(instance):
         return sql.Identifier(instance.__dict__[relation_name])
 
@@ -119,6 +120,7 @@ def identifier(relation_name):
 
 def literal(relation_name):
     """Property factory for returning a :class:`psycopg2.sql.Literal`."""
+
     def lit_getter(instance):
         return sql.Literal(instance.__dict__[relation_name])
 
@@ -137,7 +139,8 @@ class DbRelation:
     Concatenation of identifiers is supported through the `+` operator.
     For example `DbRelation('schema') + DbRelation('table')`.
     """
-    sqlid = identifier('sqlid')
+
+    sqlid = identifier("sqlid")
 
     def __init__(self, relation_name):
         self.sqlid = relation_name
@@ -189,7 +192,7 @@ class Schema:
         self.__data = {}
         for key, value in mapping.items():
             if iskeyword(key):
-                key += '_'
+                key += "_"
             self.__data[key] = value
 
     def __getattr__(self, name):

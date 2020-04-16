@@ -15,13 +15,13 @@ features:
 
 elevation:
     directories:
-        -   ahn/ahn3:
+        -   /home/balazs/Development/tile_processor/tests/data/ahn/ahn3:
                 file_pattern: "C{tile}.laz"
                 priority: 1
-        -   ahn/ahn2:
+        -   /home/balazs/Development/tile_processor/tests/data/ahn/ahn2:
                 file_pattern: "unit_{tile}.laz"
                 priority: 2
-        -   ahn/ahn1:
+        -   /home/balazs/Development/tile_processor/tests/data/ahn/ahn1:
                 file_pattern: "m-{tile}.laz"
                 priority: 3
 
@@ -52,7 +52,15 @@ elevation_tiles:
             version: ahn_version
 
 output:
-    dir: /tmp/3DBAG
+    prefix: lod13_
+    database:
+        dbname: bag3d_db
+        host: localhost
+        port: 5590
+        user: bag3d_tester
+        password: bag3d_test
+        schema: out_schema
 
-path_executable: /home/balazs/Development/3dfier_src/build_bag3d/3dfier
+path_executable: /opt/geoflow/bin/geof
+path_flowchart: /home/balazs/Development/3dbag-tools/flowcharts/runner.json
 doexec: true

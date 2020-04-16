@@ -28,13 +28,12 @@ def test_content(response):
 
 
 class TestCLI:
-
     def test_help(self):
         """Test the CLI."""
         runner = CliRunner()
         result = runner.invoke(cli.main)
         assert result.exit_code == 0
         assert "Process data sets in tiles." in result.output
-        help_result = runner.invoke(cli.main, ['--help'])
+        help_result = runner.invoke(cli.main, ["--help"])
         assert help_result.exit_code == 0
-        assert 'Usage: main [OPTIONS] COMMAND [ARGS]' in help_result.output
+        assert "Usage: main [OPTIONS] COMMAND [ARGS]" in help_result.output

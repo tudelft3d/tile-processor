@@ -5,50 +5,58 @@
 
 import pytest
 import logging
+from pathlib import Path
 
 from tile_processor import processor
 from tile_processor import tileconfig, output
 
-@pytest.fixture('module')
+
+@pytest.fixture("module")
 def generate_sample_processor():
     def _generate(worker):
-        tiles = tileconfig.FileTiles(output = output.DirOutput('/tmp'))
-        tiles.to_process = ['tile_1', 'tile_2', 'tile_3', 'tile_4', 'tile_5']
-        args = {'arg1': 'argument 1', 'arg2': 'argument 2'}
-        expectation = {'tile_1': True,
-                       'tile_2': True,
-                       'tile_3': True,
-                       'tile_4': True,
-                       'tile_5': True}
+        tiles = tileconfig.FileTiles(
+            output=output.Output(dir=output.DirOutput(Path("/tmp")))
+        )
+        tiles.to_process = ["tile_1", "tile_2", "tile_3", "tile_4", "tile_5"]
+        args = {"arg1": "argument 1", "arg2": "argument 2"}
+        expectation = {
+            "tile_1": True,
+            "tile_2": True,
+            "tile_3": True,
+            "tile_4": True,
+            "tile_5": True,
+        }
         threadprocessor = processor.factory.create(
-            'threadprocessor', name='test', tiles=tiles)
+            "threadprocessor", name="test", tiles=tiles
+        )
         threadprocessor.configure(
-            threads=3,
-            monitor_log=None,
-            monitor_interval=5,
-            worker=worker,
-            config=args)
+            threads=3, monitor_log=None, monitor_interval=5, worker=worker, config=args
+        )
         return threadprocessor, expectation
+
     return _generate
 
+
 class TestThreadProcessor:
-
-
     def test_processor_raise_exception(self, caplog, generate_sample_processor):
         caplog.set_level(logging.DEBUG)
+
         def sample_worker(arg0, arg1=None, arg2=None):
             print(arg0, arg1, arg2)
             return True
+
         threadprocessor, expectation = generate_sample_processor(sample_worker)
         res = threadprocessor._process()
         with pytest.raises(TypeError):
-            result = {tile:r for tile,r in res}
+            result = {tile: r for tile, r in res}
 
     def test_process(self, caplog, generate_sample_processor):
         caplog.set_level(logging.INFO)
+
         def sample_worker(arg1, arg2, **kwargs):
             print(f"arg1={arg1}, arg2={arg2}, kwargs={kwargs}")
             return True
+
         threadprocessor, expectation = generate_sample_processor(sample_worker)
         res = threadprocessor._process()
         result = {tile: r for tile, r in res}
@@ -56,14 +64,17 @@ class TestThreadProcessor:
 
     def test_restart_processor(self, caplog, generate_sample_processor):
         caplog.set_level(logging.INFO)
+
         def sample_worker(tile, **kwargs):
             """Simulate failing tiles"""
-            if tile == 'tile_1' or tile == 'tile_2':
+            if tile == "tile_1" or tile == "tile_2":
                 return False
             else:
                 return True
+
         threadprocessor, expectation = generate_sample_processor(sample_worker)
         threadprocessor.process(restart=3)
-        restarts = [rec.message for rec in caplog.records
-                    if "Restarting" in rec.message]
+        restarts = [
+            rec.message for rec in caplog.records if "Restarting" in rec.message
+        ]
         assert len(restarts) == 3

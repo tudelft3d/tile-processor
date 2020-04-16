@@ -88,7 +88,7 @@ def cfg_bag3d(data_dir, request):
     tile_boundaries = 0
     tile_index = 1
     with open(data_dir / 'bag3d_config.yml', 'r') as fo:
-        cfg = yaml.load(fo, Loader=yaml.FullLoader)
+        cfg = yaml.full_load(fo)
         cfg['features_tiles']['boundaries']['table'] = request.param[tile_boundaries]
         cfg['features_tiles']['index']['table'] = request.param[
             tile_index]
@@ -101,7 +101,7 @@ def cfg_bag3d_path(data_dir):
 @pytest.fixture(scope='function')
 def cfg_example(data_dir):
     with open(data_dir / 'exampledb_config.yml', 'r') as fo:
-        yield yaml.load(fo, Loader=yaml.FullLoader)
+        yield yaml.full_load(fo)
 
 @pytest.fixture(scope='function')
 def cfg_ahn_abs(cfg_bag3d, data_dir) -> StringIO:
@@ -114,5 +114,27 @@ def cfg_ahn_abs(cfg_bag3d, data_dir) -> StringIO:
         ahn_path, mapping = list(d.items())[0]
         absp = data_dir / ahn_path
         cfg_abs['elevation']['directories'][i] = {str(absp): mapping}
-    cfg_abs_stream = yaml.dump(cfg_abs)
-    yield StringIO(cfg_abs_stream)
+    yield StringIO(yaml.dump(cfg_abs))
+
+@pytest.fixture(scope='function')
+def cfg_ahn_geof(cfg_ahn_abs) -> StringIO:
+    """Absolute paths of the AHN directories in the directory mapping of the
+    configuration file
+    """
+    cfg = yaml.full_load(cfg_ahn_abs)
+    # Replace the output
+    outp = yaml.full_load("""
+    prefix: lod13_
+    database:
+        dbname: bag3d_db
+        host: localhost
+        port: 5590
+        user: bag3d_tester
+        password: bag3d_test
+        schema: out_schema
+    """)
+    cfg['output'] = outp
+    cfg['path_executable'] = '/opt/geoflow/bin/geof'
+    cfg['path_flowchart'] = '/home/balazs/Development/3dbag-tools/flowcharts/runner.json'
+    cfg['doexec'] = True
+    yield StringIO(yaml.dump(cfg))
