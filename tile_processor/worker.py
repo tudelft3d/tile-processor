@@ -13,10 +13,9 @@ import logging
 from locale import getpreferredencoding
 from subprocess import PIPE
 from typing import Sequence, List
-from time import time
+from time import time, sleep
 
-
-from psutil import Popen
+from psutil import Popen, STATUS_ZOMBIE, STATUS_SLEEPING
 import yaml
 
 from tile_processor.tileconfig import DbTilesAHN
@@ -472,16 +471,14 @@ def run_subprocess(
         start = time()
         popen = Popen(command, shell=shell, stderr=PIPE, stdout=PIPE)
         if monitor_log is not None:
-            pass
-            # while True:
-            #     sleep(monitor_interval)
-            #     monitor_log.info(
-            #         f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}"
-            #         f"\t{popen.cpu_times().system}\t{popen.memory_info().rss}"
-            #     )
-            #     return_code = popen.poll()
-            #     if return_code is not None:
-            #         break
+            while True:
+                sleep(monitor_interval)
+                monitor_log.info(
+                    f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}"
+                    f"\t{popen.memory_info().rss}"
+                )
+                if not popen.is_running() or popen.status() == STATUS_ZOMBIE or popen.status() == STATUS_SLEEPING:
+                    break
         stdout, stderr = popen.communicate()
         err = stderr.decode(getpreferredencoding(do_setlocale=True))
         out = stdout.decode(getpreferredencoding(do_setlocale=True))

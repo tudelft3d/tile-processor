@@ -79,7 +79,7 @@ class ThreadProcessor:
         }
         self.worker = worker
         log.info(f"Configured {self.__class__.__name__}:{self.name}")
-        log.debug(pformat(vars(self)))
+        # log.debug(pformat(vars(self)))
 
     def process(self, restart: int = 0) -> List[str]:
         """Runs the workers asynchronously, using a `ThreadPoolExecutor

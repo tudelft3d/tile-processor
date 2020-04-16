@@ -308,7 +308,8 @@ class DbTilesAHN(Tiles):
         # tile list by selecting the latest AHN version that is available
         # on the filesystem
         if version is None and (on_border is None or on_border is False):
-            for tile in self.feature_tiles.to_process:
+            self.to_process = self.feature_tiles.to_process
+            for tile in self.to_process:
                 elevation_match = self.match_elevation_tile(
                     feature_tile=tile, idx_identical=False
                 )
@@ -318,6 +319,7 @@ class DbTilesAHN(Tiles):
                 self.elevation_file_index[tile] = paths
                 # Create tile views
                 self.feature_views[tile] = self.create_tile_view(tile, tin=tin)
+
             del paths, elevation_file_paths, elevation_match
             log.info(f"{self.__class__.__name__} configuration done.")
         elif version is not None and on_border is False:
@@ -330,7 +332,7 @@ class DbTilesAHN(Tiles):
                     version_set = set(tiles_per_version[version])
                     process_set = set(self.feature_tiles.to_process)
                     self.to_process = list(version_set.intersection(process_set))
-                    for tile in self.feature_tiles.to_process:
+                    for tile in self.to_process:
                         elevation_match = self.match_elevation_tile(
                             feature_tile=tile, idx_identical=False
                         )
@@ -352,7 +354,7 @@ class DbTilesAHN(Tiles):
             border_set = set(self.version_boundary())
             process_set = set(self.feature_tiles.to_process)
             self.to_process = list(border_set.intersection(process_set))
-            for tile in self.feature_tiles.to_process:
+            for tile in self.to_process:
                 elevation_match = self.match_elevation_tile(
                     feature_tile=tile, idx_identical=False
                 )

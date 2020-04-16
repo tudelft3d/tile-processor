@@ -369,7 +369,7 @@ class AHNController(Controller):
         )
         ahntiles.configure(
             tiles=tiles,
-            version=3,
+            version=None,
             directory_mapping=self.cfg["config"]["directory_mapping"],
             tin=False,
         )
