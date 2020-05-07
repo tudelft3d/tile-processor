@@ -102,11 +102,15 @@ class DbOutput:
 
     def with_table(self, table: str) -> str:
         """Returns a PostgreSQL DSN for GDAL with the table set to the value.
-        Replaces the tables in the dsn if the table declaraction is already part of it.
+        Replaces the tables in the dsn if the table declaration is already part of it.
         """
         i = self.dsn.find("tables")
+        if self.schema:
+            _tbl = '.'.join([self.schema, table])
+        else:
+            _tbl = table
         if i >= 0:
             # Replace the tables specification
-            return " ".join([self.dsn[:i], f"tables={table}"])
+            return " ".join([self.dsn[:i], f"tables={_tbl}"])
         else:
-            return " ".join([self.dsn, f"tables={table}"])
+            return " ".join([self.dsn, f"tables={_tbl}"])

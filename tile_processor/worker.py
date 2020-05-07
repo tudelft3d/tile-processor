@@ -357,23 +357,17 @@ class Geoflow:
         """Create a tile-specific configuration file."""
         pass
 
-    def execute(
-        self,
-        tile: str,
-        tiles: DbTilesAHN,
-        path_executable: str,
-        path_flowchart: str,
-        monitor_log: logging.Logger,
-        monitor_interval: int,
-        doexec: bool = True,
-        **ignore,
-    ) -> bool:
+    def execute(self, tile: str, tiles: DbTilesAHN, path_executable: str,
+                path_flowchart: str, path_toml: str, monitor_log: logging.Logger,
+                monitor_interval: int, doexec: bool = True, **ignore) -> bool:
         """Execute Geoflow.
 
+        :param path_toml:
         :param tile: Tile ID to process
         :param tiles: Feature tiles configuration object
         :param path_executable: Absolute path to the Geoflow exe
         :param path_flowchart: Absolute path to the Geoflow flowchart
+        :param path_toml: Absolute path to the Geoflow configuration TOML file that holds default values
         :param monitor_log:
         :param monitor_interval:
         :param doexec:
@@ -385,7 +379,10 @@ class Geoflow:
             return False
         config = self.create_configuration(tile=tile, tiles=tiles)
         if config is not None and len(config) > 0:
-            command = [path_executable, path_flowchart] + config
+            if path_toml is not None and len(path_toml) > 0:
+                command = [path_executable, path_flowchart, '--config', path_toml] + config
+            else:
+                command = [path_executable, path_flowchart] + config
             try:
                 success = run_subprocess(
                     command,
@@ -421,20 +418,32 @@ class LoD13Worker(Geoflow):
         # Select the las file paths for the tile
         input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
         # Create the output connection string
-        if tiles.output.dir is not None:
-            dsn_out = tiles.output.dir.join_path(path=f"{tile}.gpkg")
-            format_out = "GPKG"
-        elif tiles.output.db is not None:
-            dsn_out = tiles.output.db.dsn
+        if tiles.output.db is not None:
+            dsn_out = tiles.output.db
+            t_lod12_2d = tiles.output.db.with_table(
+                tiles.output.kwargs['table_prefix'] + 'lod12_2d')
+            t_lod12_3d = tiles.output.db.with_table(
+                tiles.output.kwargs['table_prefix'] + 'lod12_3d')
+            t_lod13_2d = tiles.output.db.with_table(
+                tiles.output.kwargs['table_prefix'] + 'lod13_2d')
+            t_lod13_3d = tiles.output.db.with_table(
+                tiles.output.kwargs['table_prefix'] + 'lod13_3d')
+            t_lod22_3d = tiles.output.db.with_table(
+                tiles.output.kwargs['table_prefix'] + 'lod22_3d')
             format_out = "PostgreSQL"
         else:
-            raise ValueError(f"Unknown Output type {type(tiles.output)}")
+            raise ValueError(f"Invalid Output type {type(tiles.output)}")
         # Put together the configuration
         config = []
         config.append(f"--INPUT_FOOTPRINT_SOURCE={dsn_in}")
-        config.append(f"--OUTPUT_SOURCE={dsn_out}")
+        config.append(f"--overwrite_output=false")
+        config.append(f"--OUTPUT_LAYER_PREFIX={tiles.output.kwargs['table_prefix']}")
+        config.append(f"--OUTPUT_SOURCE_LOD12_2D={t_lod12_2d}")
+        config.append(f"--OUTPUT_SOURCE_LOD12_3D={t_lod12_3d}")
+        config.append(f"--OUTPUT_SOURCE_LOD13_2D={t_lod13_2d}")
+        config.append(f"--OUTPUT_SOURCE_LOD13_3D={t_lod13_3d}")
+        config.append(f"--OUTPUT_SOURCE_LOD22_3D={t_lod22_3d}")
         config.append(f"--OUTPUT_FORMAT={format_out}")
-        config.append(f"--OUTPUT_LAYER_PREFIX={tile}_")
         config.append(f"--INPUT_LAS_FILES=")
         config.extend(input_las_files)
         return config

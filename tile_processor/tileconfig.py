@@ -24,7 +24,7 @@ log = logging.getLogger(__name__)
 class Tiles(ABC):
     """Basic tile configuration"""
 
-    def __init__(self, output: output.Output = None) -> None:
+    def __init__(self, out: output.Output = None) -> None:
         """
         :param output: An Output object
         """
@@ -43,7 +43,7 @@ class FileTiles(Tiles):
         """
         :param output: An Output object
         """
-        super().__init__(output=output)
+        super().__init__(out=output)
 
     def configure(self, tiles=Sequence[str]) -> None:
         self.to_process = tiles
@@ -65,7 +65,7 @@ class DbTiles(Tiles):
         :param tile_index_schema: Schema of the tile index of the features.
         :param features_schema: Schema of the `features`
         """
-        super().__init__(output=output)
+        super().__init__(out=output)
         self.conn = conn
         self.tile_index = tile_index_schema
         self.features = features_schema
@@ -228,7 +228,7 @@ class DbTiles(Tiles):
             """
         SELECT DISTINCT {tile}
         FROM {index_}
-        WHERE {tile} = ANY( {tiles}::VARCHAR[] )
+        WHERE {tile} = ANY( {tiles} )
         """
         ).format(**query_params)
         log.debug(self.conn.print_query(query))
@@ -262,7 +262,7 @@ class DbTilesAHN(Tiles):
         # assert isinstance(conn, db.Db), "conn must be a Db object"
         # assert isinstance(elevation_tiles, DbTiles), "elevation_tiles must be a DbTiles object"
         # assert isinstance(feature_tiles, DbTiles), "feature_tiles must be a DbTiles object"
-        super().__init__(output=output)
+        super().__init__(out=output)
         self.conn = conn
         self.elevation_tiles = elevation_tiles
         self.feature_tiles = feature_tiles
@@ -665,8 +665,7 @@ class DbTilesAHN(Tiles):
                 "uniqueid": self.feature_tiles.tile_index.boundaries.field.uniqueid.sqlid,
                 "tile": sql.Literal(feature_tile),
             }
-            query = sql.SQL(
-                """
+            query = sql.SQL("""
             CREATE OR REPLACE VIEW {view}
             AS SELECT * FROM {feature_table} WHERE {uniqueid} = {tile};
             """
@@ -685,8 +684,7 @@ class DbTilesAHN(Tiles):
                 "fi_tileid": self.feature_tiles.tile_index.index.field.tile.sqlid,
                 "tile": sql.Literal(feature_tile),
             }
-            query = sql.SQL(
-                """
+            query = sql.SQL("""
             CREATE OR REPLACE VIEW {view}
             AS SELECT f.* 
             FROM {features} f 

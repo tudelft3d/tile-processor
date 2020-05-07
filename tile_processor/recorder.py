@@ -23,9 +23,9 @@ except ImportError as e:
 log = logging.getLogger(__name__)
 
 
-def configure_logging(verbosity):
+def configure_logging(loglevel):
     """Configures the general logging in the application"""
-    log_level = max(10, 30 - 10 * verbosity)
+    log_level = getattr(logging, loglevel.upper(), None)
     logging.basicConfig(
         stream=sys.stdout,
         level=log_level,

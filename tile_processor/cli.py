@@ -12,12 +12,12 @@ from tile_processor import recorder, controller, worker
 
 @click.group()
 @click.option(
-    "--verbose",
-    "-v",
-    count=True,
-    help="Increase verbosity. You can increment the level by chaining the "
-    "argument, eg. -vvv",
-)
+    '--log',
+    type=click.Choice(
+        ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
+        case_sensitive=False),
+    default='INFO',
+    help="Set the logging level in the log file 'cjdb.log'.")
 @click.option("--quiet", "-q", count=True, help="Decrease verbosity.")
 @click.option(
     "--monitor",
@@ -29,7 +29,7 @@ from tile_processor import recorder, controller, worker
     "The monitoring interval is passed in seconds.",
 )
 @click.pass_context
-def main(ctx, verbose, quiet, monitor):
+def main(ctx, log, quiet, monitor):
     """Process data sets in tiles."""
     ctx.ensure_object(dict)
     ctx.obj["monitor_log"] = None
@@ -38,8 +38,7 @@ def main(ctx, verbose, quiet, monitor):
         monitor_log = recorder.configure_ressource_logging()
         ctx.obj["monitor_log"] = monitor_log
         ctx.obj["monitor_interval"] = monitor
-    verbosity = verbose - quiet
-    recorder.configure_logging(verbosity)
+    recorder.configure_logging(log)
     # For logging from the click commands
     ctx.obj["log"] = logging.getLogger(__name__)
     return 0

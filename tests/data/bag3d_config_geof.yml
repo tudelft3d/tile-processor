@@ -63,4 +63,5 @@ output:
 
 path_executable: /opt/geoflow/bin/geof
 path_flowchart: /home/balazs/Development/3dbag-tools/flowcharts/runner.json
+path_toml: /home/balazs/Development/tile_processor/tests/data/geof_config.toml
 doexec: true
