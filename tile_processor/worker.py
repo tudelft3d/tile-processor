@@ -449,6 +449,28 @@ class LoD13Worker(Geoflow):
         return config
 
 
+class AlphaShapeWorker(Geoflow):
+    def create_configuration(self, tile: str, tiles: DbTilesAHN):
+        # Select the las file paths for the tile
+        input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
+        # Create the output connection string
+        if tiles.output.db is not None:
+            dsn_out = tiles.output.db.with_table(
+                tiles.output.kwargs['table_prefix'] + 'alpha_shape')
+            format_out = "PostgreSQL"
+        else:
+            raise ValueError(f"Invalid Output type {type(tiles.output)}")
+        # Put together the configuration
+        config = []
+        config.append(f"--overwrite_output=false")
+        config.append(f"--OUTPUT_LAYER_PREFIX={tiles.output.kwargs['table_prefix']}")
+        config.append(f"--OUTPUT_SOURCE={dsn_out}")
+        config.append(f"--OUTPUT_FORMAT={format_out}")
+        config.append(f"--INPUT_LAS_FILES=")
+        config.extend(input_las_files)
+        return config
+
+
 def run_subprocess(
     command: Sequence[str],
     shell: bool = False,
@@ -515,3 +537,4 @@ factory.register_worker("ExampleDb", ExampleDbWorker)
 factory.register_worker("3dfier", ThreedfierWorker)
 factory.register_worker("3dfierTIN", ThreedfierTINWorker)
 factory.register_worker("LoD13", LoD13Worker)
+factory.register_worker("AlphaShape", AlphaShapeWorker)
