@@ -315,7 +315,10 @@ class DbTilesAHN(Tiles):
                 )
                 paths = []
                 for ahn_id, ahn_version in elevation_match.items():
-                    paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+                    if ahn_id in elevation_file_paths:
+                        paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+                    else:
+                        log.debug(f"File matching the AHN ID {ahn_id} not found")
                 self.elevation_file_index[tile] = paths
                 # Create tile views
                 self.feature_views[tile] = self.create_tile_view(tile, tin=tin)
