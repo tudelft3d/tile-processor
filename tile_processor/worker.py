@@ -417,6 +417,10 @@ class LoD13Worker(Geoflow):
             dsn_in += f" password={tiles.conn.password}"
         # Select the las file paths for the tile
         input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
+        # --OUTPUT_LAYER_PREFIX and table name in tables= in the --OUTPUT_SOURCE must
+        # be the same.
+        # But in case of the LoD13 reconstruction, the --OUTPUT_LAYER_PREFIX has
+        # hardcoded suffixes in the Flowchart already!
         # Create the output connection string
         if tiles.output.db is not None:
             dsn_out = tiles.output.db
@@ -453,17 +457,19 @@ class AlphaShapeWorker(Geoflow):
     def create_configuration(self, tile: str, tiles: DbTilesAHN):
         # Select the las file paths for the tile
         input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
+        # --OUTPUT_LAYER_PREFIX and table name in tables= in the --OUTPUT_SOURCE must
+        # be the same.
+        table_name = tiles.output.kwargs['table_prefix'] + 'alpha_shape'
         # Create the output connection string
         if tiles.output.db is not None:
-            dsn_out = tiles.output.db.with_table(
-                tiles.output.kwargs['table_prefix'] + 'alpha_shape')
+            dsn_out = tiles.output.db.with_table(table_name)
             format_out = "PostgreSQL"
         else:
             raise ValueError(f"Invalid Output type {type(tiles.output)}")
         # Put together the configuration
         config = []
         config.append(f"--overwrite_output=false")
-        config.append(f"--OUTPUT_LAYER_PREFIX={tiles.output.kwargs['table_prefix']}")
+        config.append(f"--OUTPUT_LAYER_PREFIX={table_name}")
         config.append(f"--OUTPUT_SOURCE={dsn_out}")
         config.append(f"--OUTPUT_FORMAT={format_out}")
         config.append(f"--INPUT_LAS_FILES=")
