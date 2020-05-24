@@ -347,12 +347,6 @@ class AHNController(Controller):
         self.cfg["worker"] = worker_init.execute
 
         # Configure the tiles
-        _tilecfg = {
-            "conn": db.Db(**self.cfg["config"]["database"]),
-            "elevation_index_schema": db.Schema(self.cfg["config"]["elevation_tiles"]),
-            "tile_index_schema": db.Schema(self.cfg["config"]["features_tiles"]),
-            "features_schema": db.Schema(self.cfg["config"]["features"]),
-        }
         conn = db.Db(**self.cfg["config"]["database"])
         elevation_tiles = tileconfig.DbTiles(
             conn=conn,
@@ -373,6 +367,55 @@ class AHNController(Controller):
             directory_mapping=self.cfg["config"]["directory_mapping"],
             tin=False,
         )
+        # Set up outputs
+        output_obj = output.Output()
+        if "database" in self.cfg["config"]["output"]:
+            output_obj.db = output.DbOutput(
+                conn=db.Db(**self.cfg["config"]["output"]["database"])
+            )
+        elif "dir" in self.cfg["config"]["output"]:
+            output_obj.dir = output.DirOutput(path=self.cfg["config"]["output"]["dir"])
+        for k, v in self.cfg["config"]["output"].items():
+            if k != "database" and k != "dir":
+                output_obj.kwargs[k] = v
+        ahntiles.output = output_obj
+        name = "part1"
+        proc = processor.factory.create(processor_key, name=name, tiles=ahntiles)
+        self.processors[proc] = name
+        log.info(f"Configured {self.__class__.__name__}")
+
+
+class AhnTinController(AHNController):
+    """Controller for AHN when the AHN tile boundaries are the features themselves."""
+    def configure(self, tiles, processor_key: str, worker_key: str):
+        """Configure the control logic."""
+        worker_init = worker.factory.create(worker_key)
+        self.cfg["worker"] = worker_init.execute
+
+        # Configure feature tiles with elevation from AHN3
+        conn = db.Db(**self.cfg["config"]["database"])
+        elevation_tiles = tileconfig.DbTiles(
+            conn=conn,
+            tile_index_schema=db.Schema(self.cfg["config"]["elevation_tiles"]),
+        )
+        elevation_tiles.configure(tiles=tiles)
+        ahntiles = tileconfig.DbTilesAHN(
+            conn=None, elevation_tiles=None, feature_tiles=None
+        )
+        ahntiles.to_process = elevation_tiles.to_process
+        elevation_file_paths = ahntiles.create_elevation_file_index(
+            directory_mapping=self.cfg["config"]["directory_mapping"]
+        )
+        ahn_version = 3
+        ahntiles.elevation_file_index = {}
+        for i, ahn_id in enumerate(elevation_tiles.to_process):
+            paths = []
+            if ahn_id in elevation_file_paths:
+                paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+            else:
+                log.debug(f"File matching the AHN ID {ahn_id} not found, skipping tile")
+                del ahntiles.to_process[i]
+            ahntiles.elevation_file_index[ahn_id] = paths
         # Set up outputs
         output_obj = output.Output()
         if "database" in self.cfg["config"]["output"]:
@@ -547,5 +590,6 @@ factory = ControllerFactory()
 factory.register_controller("Example", ExampleController)
 # factory.register_controller('ExampleDb', ExampleDbController)
 factory.register_controller("AHN", AHNController)
+factory.register_controller("AHNTin", AhnTinController)
 factory.register_controller("AHNboundary", AHNBoundaryController)
 factory.register_controller("AHNboundaryTIN", AHNTINBoundaryController)
