@@ -577,7 +577,7 @@ class DbTilesAHN(Tiles):
                 "feature_tile": sql.Literal(feature_tile),
             }
             query = sql.SQL(
-                """
+            """
             SELECT
                 {elevation_tiles},
                 {elevation_version}

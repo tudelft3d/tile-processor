@@ -417,39 +417,47 @@ class LoD13Worker(Geoflow):
             dsn_in += f" password={tiles.conn.password}"
         # Select the las file paths for the tile
         input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
-        # --OUTPUT_LAYER_PREFIX and table name in tables= in the --OUTPUT_SOURCE must
-        # be the same.
-        # But in case of the LoD13 reconstruction, the --OUTPUT_LAYER_PREFIX has
-        # hardcoded suffixes in the Flowchart already!
         # Create the output connection string
         if tiles.output.db is not None:
-            dsn_out = tiles.output.db
-            t_lod12_2d = tiles.output.db.with_table(
-                tiles.output.kwargs['table_prefix'] + 'lod12_2d')
-            t_lod12_3d = tiles.output.db.with_table(
-                tiles.output.kwargs['table_prefix'] + 'lod12_3d')
-            t_lod13_2d = tiles.output.db.with_table(
-                tiles.output.kwargs['table_prefix'] + 'lod13_2d')
-            t_lod13_3d = tiles.output.db.with_table(
-                tiles.output.kwargs['table_prefix'] + 'lod13_3d')
-            t_lod22_3d = tiles.output.db.with_table(
-                tiles.output.kwargs['table_prefix'] + 'lod22_3d')
+            dsn_out = tiles.output.db.dsn_no_relation()
+            if tiles.output.db.schema is not None:
+                out_layer_template = f"{tiles.output.db.schema}.{tiles.output.kwargs['table_prefix']}"
+            else:
+                out_layer_template = tiles.output.kwargs['table_prefix']
+            t_lod12_2d = out_layer_template + 'lod12_2d'
+            t_lod12_3d = out_layer_template + 'lod12_3d'
+            t_lod13_2d = out_layer_template + 'lod13_2d'
+            t_lod13_3d = out_layer_template + 'lod13_3d'
+            t_lod22_2d = out_layer_template + 'lod22_2d'
+            t_lod22_3d = out_layer_template + 'lod22_3d'
             format_out = "PostgreSQL"
         else:
             raise ValueError(f"Invalid Output type {type(tiles.output)}")
         # Put together the configuration
         config = []
         config.append(f"--INPUT_FOOTPRINT_SOURCE={dsn_in}")
+
         config.append(f"--overwrite_output=false")
-        config.append(f"--OUTPUT_LAYER_PREFIX={tiles.output.kwargs['table_prefix']}")
-        config.append(f"--OUTPUT_SOURCE_LOD12_2D={t_lod12_2d}")
-        config.append(f"--OUTPUT_SOURCE_LOD12_3D={t_lod12_3d}")
-        config.append(f"--OUTPUT_SOURCE_LOD13_2D={t_lod13_2d}")
-        config.append(f"--OUTPUT_SOURCE_LOD13_3D={t_lod13_3d}")
-        config.append(f"--OUTPUT_SOURCE_LOD22_3D={t_lod22_3d}")
+
+        config.append(f"--OUTPUT_SOURCE_LOD12_2D={dsn_out}")
+        config.append(f"--OUTPUT_SOURCE_LOD12_3D={dsn_out}")
+        config.append(f"--OUTPUT_SOURCE_LOD13_2D={dsn_out}")
+        config.append(f"--OUTPUT_SOURCE_LOD13_3D={dsn_out}")
+        config.append(f"--OUTPUT_SOURCE_LOD22_2D={dsn_out}")
+        config.append(f"--OUTPUT_SOURCE_LOD22_3D={dsn_out}")
+
+        config.append(f"--OUTPUT_LAYERNAME_LOD12_2D={t_lod12_2d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD12_3D={t_lod12_3d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD13_2D={t_lod13_2d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD13_3D={t_lod13_3d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD22_2D={t_lod22_2d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD22_3D={t_lod22_3d}")
+
         config.append(f"--OUTPUT_FORMAT={format_out}")
+
         config.append(f"--INPUT_LAS_FILES=")
         config.extend(input_las_files)
+
         return config
 
 
@@ -459,7 +467,7 @@ class AlphaShapeWorker(Geoflow):
         input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
         # --OUTPUT_LAYER_PREFIX and table name in tables= in the --OUTPUT_SOURCE must
         # be the same.
-        table_name = tiles.output.kwargs['table_prefix'] + 'alpha_shape'
+        table_name = tiles.output.kwargs['table_prefix'] + 'alpha_shape_buildings'
         # Create the output connection string
         if tiles.output.db is not None:
             dsn_out = tiles.output.db.with_table(table_name)

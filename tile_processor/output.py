@@ -100,6 +100,21 @@ class DbOutput:
     def dsn(self):
         self.__dsn = None
 
+    def dsn_no_relation(self):
+        """Returns a DSN without schema and table specifier"""
+        # Create the dsn
+        _dsn = " ".join(
+            [
+                f"PG:dbname={self.conn.dbname}",
+                f"host={self.conn.host}",
+                f"port={self.conn.port}",
+                f"user={self.conn.user}",
+            ]
+        )
+        if self.conn.password is not None:
+            _dsn = " ".join([_dsn, f"password={self.conn.password}"])
+        return _dsn
+
     def with_table(self, table: str) -> str:
         """Returns a PostgreSQL DSN for GDAL with the table set to the value.
         Replaces the tables in the dsn if the table declaration is already part of it.
