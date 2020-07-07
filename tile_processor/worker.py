@@ -527,10 +527,9 @@ def run_subprocess(
         stdout, stderr = popen.communicate()
         err = stderr.decode(getpreferredencoding(do_setlocale=True))
         out = stdout.decode(getpreferredencoding(do_setlocale=True))
-        popen.wait()
         finish = time()
         log.info(f"Tile {tile_id} finished in {(finish-start)/60} minutes")
-        if popen.returncode != 0 or "error" in err.lower():
+        if popen.returncode != 0:
             log.error(
                 f"Tile {tile_id} process returned with non-zero exit "
                 f"code {popen.returncode}. Rerun in debug mode to see the stdout and stderr."
