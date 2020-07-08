@@ -485,6 +485,72 @@ class AlphaShapeWorker(Geoflow):
         return config
 
 
+class TileExporter:
+    def execute(self, tile: str, tiles: DbTilesAHN, path_lasmerge,
+                path_ogr2ogr, out_dir, monitor_log: logging.Logger,
+                monitor_interval: int, doexec: bool = True, **ignore) -> bool:
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        results = []
+        # Create the Postgres connection string
+        dsn_in = (
+            f"PG:dbname={tiles.conn.dbname} "
+            f"host={tiles.conn.host} "
+            f"port={tiles.conn.port} "
+            f"user={tiles.conn.user} "
+            f"schemas={tiles.feature_tiles.features.schema.string} "
+            f"tables={tiles.feature_views[tile]}"
+        )
+        if tiles.conn.password:
+            dsn_in += f" password={tiles.conn.password}"
+        # Select the las file paths for the tile
+        input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
+
+        if len(tiles.elevation_file_index[tile]) == 0:
+            log.debug(f"Elevation files are not available for tile {tile}")
+            return False
+
+        log.debug(f"Exporting footprints to GPKG:{tile}")
+        #FIXME: this doesnt work on windows
+        command = [path_ogr2ogr, "-f", "GPKG", f"{out_dir}/{tile}.gpkg", dsn_in]
+        try:
+            success = run_subprocess(
+                command,
+                shell=False,
+                doexec=doexec,
+                monitor_log=monitor_log,
+                monitor_interval=monitor_interval,
+                tile_id=tile,
+            )
+            results.append(success)
+        except BaseException:
+            log.exception(
+                f"Cannot run {os.path.basename(path_ogr2ogr)} on tile {tile}"
+            )
+            results.append(False)
+
+        log.debug(f"Merging LAZ files for:{tile}")
+        command = [path_lasmerge, "-i"]
+        command.extend(input_las_files)
+        # FIXME: this doesnt work on windows
+        command.extend(["-o", f"{out_dir}/{tile}.laz"])
+        try:
+            success = run_subprocess(
+                command,
+                shell=False,
+                doexec=doexec,
+                monitor_log=monitor_log,
+                monitor_interval=monitor_interval,
+                tile_id=tile,
+            )
+            results.append(success)
+        except BaseException:
+            log.exception(
+                f"Cannot run {os.path.basename(path_lasmerge)} on tile {tile}"
+            )
+            results.append(False)
+        return all(results)
+
+
 def run_subprocess(
     command: Sequence[str],
     shell: bool = False,
@@ -551,3 +617,4 @@ factory.register_worker("3dfier", ThreedfierWorker)
 factory.register_worker("3dfierTIN", ThreedfierTINWorker)
 factory.register_worker("LoD13", LoD13Worker)
 factory.register_worker("AlphaShape", AlphaShapeWorker)
+factory.register_worker("TileExporter", TileExporter)
