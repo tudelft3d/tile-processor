@@ -60,8 +60,14 @@ def main(ctx, log, quiet, monitor):
     default=3,
     help="Max. number of worker instances to start, " "each on a separate thread",
 )
+@click.option(
+    "--restart",
+    type=int,
+    default=0,
+    help="Nr. of times to restart the failed tiles. Default 0, means no restart.",
+)
 @click.pass_context
-def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
+def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads, restart):
     """Run a process on multiple threads."""
     logger = ctx.obj["log"]
     logger.debug(f"Controller key: {controller_key}")
@@ -77,7 +83,7 @@ def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
     ctrl.configure(
         tiles=list(tiles), processor_key="threadprocessor", worker_key=worker_key
     )
-    ctrl.run()
+    ctrl.run(restart=restart)
     finish = time()
     logger.info(f"Tile-processor completed in {(finish-start)/60} minutes")
     return 0
@@ -115,7 +121,9 @@ def export_tile_inputs_cmd(ctx, controller_key, configuration, tiles,
         monitor_interval=ctx.obj["monitor_interval"],
     )
     ctrl.configure(
-        tiles=list(tiles), processor_key="threadprocessor", worker_key=worker_key
+        tiles=list(tiles),
+        processor_key="threadprocessor",
+        worker_key=worker_key
     )
     ctrl.cfg["config"]["out_dir"] = out_dir
     ctrl.run()
