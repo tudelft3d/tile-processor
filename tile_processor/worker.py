@@ -235,7 +235,7 @@ class ThreedfierWorker:
 
 
 class ThreedfierTINWorker:
-    def create_yaml(self, tile, dbtilesahn, ahn_paths, tinsimp):
+    def create_yaml(self, tile, dbtilesahn, ahn_paths, simplification_tinsimp):
         """Create the YAML configuration for 3dfier."""
         ahn_file = ""
         if len(ahn_paths) > 1:
@@ -268,7 +268,7 @@ class ThreedfierTINWorker:
 
         uniqueid = dbtilesahn.feature_tiles.features.field.uniqueid.string
 
-        tinsimp = str(tinsimp)
+        simplification_tinsimp = str(simplification_tinsimp)
         yml = yaml.load(
             f"""
         input_polygons:
@@ -279,7 +279,7 @@ class ThreedfierTINWorker:
 
         lifting_options:
           Terrain:
-            simplification_tinsimp: {tinsimp}
+            simplification_tinsimp: {simplification_tinsimp}
             inner_buffer: 0.1
             use_LAS_classes:
               - 2
@@ -303,7 +303,7 @@ class ThreedfierTINWorker:
         self,
         tile,
         tiles,
-        tinsimp,
+        simplification_tinsimp,
         out_format,
         out_format_ext,
         path_executable,
@@ -320,9 +320,9 @@ class ThreedfierTINWorker:
                 tile=tile,
                 dbtilesahn=tiles,
                 ahn_paths=tiles.elevation_file_index[tile],
-                tinsimp=tinsimp,
+                simplification_tinsimp=simplification_tinsimp,
             )
-            yml_path = tiles.output.dir.join_path(f"{tile}.yml")
+            yml_path = str(tiles.output.dir.join_path(f"{tile}.yml"))
             log.debug(f"{yml_path}\n{yml}")
             try:
                 with open(yml_path, "w") as fo:
@@ -330,7 +330,7 @@ class ThreedfierTINWorker:
             except BaseException as e:
                 log.exception(f"Error: cannot write {yml_path}")
 
-            output_path = tiles.output.dir.join_path(f"{tile}.{out_format_ext}")
+            output_path = str(tiles.output.dir.join_path(f"{tile}.{out_format_ext}"))
             command = [path_executable, yml_path, out_format, output_path]
             try:
                 success = run_subprocess(
