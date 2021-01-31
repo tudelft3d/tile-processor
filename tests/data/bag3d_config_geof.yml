@@ -52,7 +52,7 @@ elevation_tiles:
             version: ahn_version
 
 output:
-    prefix: lod13_
+    table_prefix: debug_
     database:
         dbname: bag3d_db
         host: localhost
@@ -63,5 +63,8 @@ output:
 
 path_executable: /opt/geoflow/bin/geof
 path_flowchart: /home/balazs/Development/3dbag-tools/flowcharts/runner.json
-path_toml: /home/balazs/Development/tile_processor/tests/data/geof_config.toml
+path_toml:
+#path_toml: /home/balazs/Development/tile_processor/tests/data/geof_config.toml
+path_lasmerge: /opt/LAStools/install/bin/lasmerge64
+path_ogr2ogr: ogr2ogr
 doexec: true

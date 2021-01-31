@@ -7,7 +7,6 @@ import pytest
 
 from click.testing import CliRunner
 
-from tile_processor import worker
 from tile_processor import cli
 
 
@@ -37,3 +36,13 @@ class TestCLI:
         help_result = runner.invoke(cli.main, ["--help"])
         assert help_result.exit_code == 0
         assert "Usage: main [OPTIONS] COMMAND [ARGS]" in help_result.output
+
+class TestDebug:
+    def test_exporter(self, capsys):
+        runner = CliRunner()
+        result = runner.invoke(cli.export_tile_inputs_cmd, [
+            "AHN",
+            "tests/data/bag3d_config_geof.yml",
+            "u2", "u1",
+            "tests/data/output"
+        ])

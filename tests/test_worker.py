@@ -94,3 +94,23 @@ class TestGeoflow:
             tiles=tiles, processor_key="threadprocessor", worker_key="LoD13"
         )
         lod13_controller.run()
+
+class TestTileExporter:
+    def test_for_debug(self, cfg_ahn_export, output_dir):
+        """Running LoD1.3 reconstruction"""
+        threads = 1
+        tiles = [
+            "u1", "u2"
+        ]
+        lod13_controller = controller.factory.create(
+            "AHN",
+            configuration=cfg_ahn_export,
+            threads=threads,
+            monitor_log=recorder.configure_ressource_logging(),
+            monitor_interval=10,
+        )
+        lod13_controller.configure(
+            tiles=tiles, processor_key="threadprocessor", worker_key="TileExporter"
+        )
+        lod13_controller.cfg["config"]["out_dir"] = output_dir
+        lod13_controller.run()

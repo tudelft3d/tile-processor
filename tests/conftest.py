@@ -138,3 +138,26 @@ def cfg_ahn_geof(cfg_ahn_abs) -> StringIO:
     cfg['path_flowchart'] = '/home/balazs/Development/3dbag-tools/flowcharts/runner.json'
     cfg['doexec'] = True
     yield StringIO(yaml.dump(cfg))
+
+@pytest.fixture(scope='function')
+def cfg_ahn_export(cfg_ahn_abs) -> StringIO:
+    """Absolute paths of the AHN directories in the directory mapping of the
+    configuration file
+    """
+    cfg = yaml.full_load(cfg_ahn_abs)
+    # Replace the output
+    outp = yaml.full_load("""
+    prefix: lod13_
+    database:
+        dbname: bag3d_db
+        host: localhost
+        port: 5590
+        user: bag3d_tester
+        password: bag3d_test
+        schema: out_schema
+    """)
+    cfg['output'] = outp
+    cfg['path_lasmerge'] = '/opt/LAStools/install/bin/lasmerge64'
+    cfg['path_ogr2ogr'] = '/opt/gdal-2.4.4/install/bin/ogr2ogr'
+    cfg['doexec'] = True
+    yield StringIO(yaml.dump(cfg))
