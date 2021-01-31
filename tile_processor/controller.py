@@ -241,7 +241,7 @@ class Controller:
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
-    def run(self) -> dict:
+    def run(self, restart: int = 0) -> dict:
         """Run the Controller.
 
         :return: `(processor.name : [tile ID])`
@@ -252,7 +252,7 @@ class Controller:
         results = {}
         for proc in self.processors:
             proc.configure(**self.cfg)
-            res = proc.process()
+            res = proc.process(restart=restart)
             results[proc.name] = res
         log.info(f"Done {self.__class__.__name__}. Failed: {results}")
         return results
@@ -341,7 +341,7 @@ class AHNController(Controller):
             cfg["monitor_interval"] = monitor_interval
             return cfg
 
-    def configure(self, tiles, processor_key: str, worker_key: str):
+    def configure(self, tiles, processor_key: str, worker_key: str, restart: int = 0):
         """Configure the control logic."""
         worker_init = worker.factory.create(worker_key)
         self.cfg["worker"] = worker_init.execute

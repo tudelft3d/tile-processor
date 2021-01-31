@@ -60,8 +60,14 @@ def main(ctx, log, quiet, monitor):
     default=3,
     help="Max. number of worker instances to start, " "each on a separate thread",
 )
+@click.option(
+    "--restart",
+    type=int,
+    default=0,
+    help="Nr. of times to restart the failed tiles. Default 0, means no restart.",
+)
 @click.pass_context
-def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
+def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads, restart):
     """Run a process on multiple threads."""
     logger = ctx.obj["log"]
     logger.debug(f"Controller key: {controller_key}")
@@ -77,6 +83,49 @@ def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads):
     ctrl.configure(
         tiles=list(tiles), processor_key="threadprocessor", worker_key=worker_key
     )
+    ctrl.run(restart=restart)
+    finish = time()
+    logger.info(f"Tile-processor completed in {(finish-start)/60} minutes")
+    return 0
+
+@click.command("export_tile_inputs")
+@click.argument(
+    "controller_key",
+    type=click.Choice(controller.factory._controllers, case_sensitive=False)
+)
+@click.argument("configuration", type=click.File("r"))
+@click.argument("tiles", type=str, nargs=-1)
+@click.argument("out_dir", type=click.Path(resolve_path=True, writable=True,
+                exists=True, file_okay=False))
+@click.pass_context
+def export_tile_inputs_cmd(ctx, controller_key, configuration, tiles,
+                           out_dir):
+    """Export the input footprints and point cloud for a list of tiles.
+
+    CONFIGURATION is the yaml configuration file that is used for the 'run' command.
+
+    TILES is a list of tile IDs to export. Or the keyword 'all' to export all tiles.
+
+    OUT_DIR is the path the the output directory.
+    """
+    worker_key = "TileExporter"
+    logger = ctx.obj["log"]
+    logger.debug(f"Controller key: {controller_key}")
+    logger.debug(f"Worker key: {worker_key}")
+    start = time()
+    ctrl = controller.factory.create(
+        controller_key,
+        configuration=configuration,
+        threads=1,
+        monitor_log=ctx.obj["monitor_log"],
+        monitor_interval=ctx.obj["monitor_interval"],
+    )
+    ctrl.configure(
+        tiles=list(tiles),
+        processor_key="threadprocessor",
+        worker_key=worker_key
+    )
+    ctrl.cfg["config"]["out_dir"] = out_dir
     ctrl.run()
     finish = time()
     logger.info(f"Tile-processor completed in {(finish-start)/60} minutes")
@@ -133,6 +182,7 @@ def plot_monitor_log(logfile):
 
 
 main.add_command(run_cmd)
+main.add_command(export_tile_inputs_cmd)
 main.add_command(register_schema)
 main.add_command(list_schemas)
 main.add_command(remove_schema)

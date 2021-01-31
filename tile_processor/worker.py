@@ -235,7 +235,7 @@ class ThreedfierWorker:
 
 
 class ThreedfierTINWorker:
-    def create_yaml(self, tile, dbtilesahn, ahn_paths, tinsimp):
+    def create_yaml(self, tile, dbtilesahn, ahn_paths, simplification_tinsimp):
         """Create the YAML configuration for 3dfier."""
         ahn_file = ""
         if len(ahn_paths) > 1:
@@ -268,7 +268,7 @@ class ThreedfierTINWorker:
 
         uniqueid = dbtilesahn.feature_tiles.features.field.uniqueid.string
 
-        tinsimp = str(tinsimp)
+        simplification_tinsimp = str(simplification_tinsimp)
         yml = yaml.load(
             f"""
         input_polygons:
@@ -279,7 +279,7 @@ class ThreedfierTINWorker:
 
         lifting_options:
           Terrain:
-            simplification_tinsimp: {tinsimp}
+            simplification_tinsimp: {simplification_tinsimp}
             inner_buffer: 0.1
             use_LAS_classes:
               - 2
@@ -303,7 +303,7 @@ class ThreedfierTINWorker:
         self,
         tile,
         tiles,
-        tinsimp,
+        simplification_tinsimp,
         out_format,
         out_format_ext,
         path_executable,
@@ -320,9 +320,9 @@ class ThreedfierTINWorker:
                 tile=tile,
                 dbtilesahn=tiles,
                 ahn_paths=tiles.elevation_file_index[tile],
-                tinsimp=tinsimp,
+                simplification_tinsimp=simplification_tinsimp,
             )
-            yml_path = tiles.output.dir.join_path(f"{tile}.yml")
+            yml_path = str(tiles.output.dir.join_path(f"{tile}.yml"))
             log.debug(f"{yml_path}\n{yml}")
             try:
                 with open(yml_path, "w") as fo:
@@ -330,7 +330,7 @@ class ThreedfierTINWorker:
             except BaseException as e:
                 log.exception(f"Error: cannot write {yml_path}")
 
-            output_path = tiles.output.dir.join_path(f"{tile}.{out_format_ext}")
+            output_path = str(tiles.output.dir.join_path(f"{tile}.{out_format_ext}"))
             command = [path_executable, yml_path, out_format, output_path]
             try:
                 success = run_subprocess(
@@ -485,6 +485,72 @@ class AlphaShapeWorker(Geoflow):
         return config
 
 
+class TileExporter:
+    def execute(self, tile: str, tiles: DbTilesAHN, path_lasmerge,
+                path_ogr2ogr, out_dir, monitor_log: logging.Logger,
+                monitor_interval: int, doexec: bool = True, **ignore) -> bool:
+        log.debug(f"Running {self.__class__.__name__}:{tile}")
+        results = []
+        # Create the Postgres connection string
+        dsn_in = (
+            f"PG:dbname={tiles.conn.dbname} "
+            f"host={tiles.conn.host} "
+            f"port={tiles.conn.port} "
+            f"user={tiles.conn.user} "
+            f"schemas={tiles.feature_tiles.features.schema.string} "
+            f"tables={tiles.feature_views[tile]}"
+        )
+        if tiles.conn.password:
+            dsn_in += f" password={tiles.conn.password}"
+        # Select the las file paths for the tile
+        input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
+
+        if len(tiles.elevation_file_index[tile]) == 0:
+            log.debug(f"Elevation files are not available for tile {tile}")
+            return False
+
+        log.debug(f"Exporting footprints to GPKG:{tile}")
+        #FIXME: this doesnt work on windows
+        command = [path_ogr2ogr, "-f", "GPKG", f"{out_dir}/{tile}.gpkg", dsn_in]
+        try:
+            success = run_subprocess(
+                command,
+                shell=False,
+                doexec=doexec,
+                monitor_log=monitor_log,
+                monitor_interval=monitor_interval,
+                tile_id=tile,
+            )
+            results.append(success)
+        except BaseException:
+            log.exception(
+                f"Cannot run {os.path.basename(path_ogr2ogr)} on tile {tile}"
+            )
+            results.append(False)
+
+        log.debug(f"Merging LAZ files for:{tile}")
+        command = [path_lasmerge, "-i"]
+        command.extend(input_las_files)
+        # FIXME: this doesnt work on windows
+        command.extend(["-o", f"{out_dir}/{tile}.laz"])
+        try:
+            success = run_subprocess(
+                command,
+                shell=False,
+                doexec=doexec,
+                monitor_log=monitor_log,
+                monitor_interval=monitor_interval,
+                tile_id=tile,
+            )
+            results.append(success)
+        except BaseException:
+            log.exception(
+                f"Cannot run {os.path.basename(path_lasmerge)} on tile {tile}"
+            )
+            results.append(False)
+        return all(results)
+
+
 def run_subprocess(
     command: Sequence[str],
     shell: bool = False,
@@ -527,10 +593,9 @@ def run_subprocess(
         stdout, stderr = popen.communicate()
         err = stderr.decode(getpreferredencoding(do_setlocale=True))
         out = stdout.decode(getpreferredencoding(do_setlocale=True))
-        popen.wait()
         finish = time()
         log.info(f"Tile {tile_id} finished in {(finish-start)/60} minutes")
-        if popen.returncode != 0 or "error" in err.lower():
+        if popen.returncode != 0:
             log.error(
                 f"Tile {tile_id} process returned with non-zero exit "
                 f"code {popen.returncode}. Rerun in debug mode to see the stdout and stderr."
@@ -552,3 +617,4 @@ factory.register_worker("3dfier", ThreedfierWorker)
 factory.register_worker("3dfierTIN", ThreedfierTINWorker)
 factory.register_worker("LoD13", LoD13Worker)
 factory.register_worker("AlphaShape", AlphaShapeWorker)
+factory.register_worker("TileExporter", TileExporter)
