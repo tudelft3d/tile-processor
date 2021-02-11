@@ -11,7 +11,7 @@ from tile_processor import processor
 from tile_processor import tileconfig, output
 
 
-@pytest.fixture("module")
+@pytest.fixture(scope="module")
 def generate_sample_processor():
     def _generate(worker):
         tiles = tileconfig.FileTiles(
@@ -30,7 +30,11 @@ def generate_sample_processor():
             "threadprocessor", name="test", tiles=tiles
         )
         threadprocessor.configure(
-            threads=3, monitor_log=None, monitor_interval=5, worker=worker, config=args
+            threads=3,
+            monitor_log=None,
+            monitor_interval=5,
+            worker=worker,
+            config=args,
         )
         return threadprocessor, expectation
 
@@ -38,7 +42,9 @@ def generate_sample_processor():
 
 
 class TestThreadProcessor:
-    def test_processor_raise_exception(self, caplog, generate_sample_processor):
+    def test_processor_raise_exception(
+        self, caplog, generate_sample_processor
+    ):
         caplog.set_level(logging.DEBUG)
 
         def sample_worker(arg0, arg1=None, arg2=None):
@@ -75,6 +81,8 @@ class TestThreadProcessor:
         threadprocessor, expectation = generate_sample_processor(sample_worker)
         threadprocessor.process(restart=3)
         restarts = [
-            rec.message for rec in caplog.records if "Restarting" in rec.message
+            rec.message
+            for rec in caplog.records
+            if "Restarting" in rec.message
         ]
         assert len(restarts) == 3

@@ -36,7 +36,10 @@ class TestDB:
         with pytest.raises(OperationalError) as excinfo:
             # invalid port
             db.Db(
-                dbname=bag3d_db.dbname, host=bag3d_db.host, port=1, user=bag3d_db.user
+                dbname=bag3d_db.dbname,
+                host=bag3d_db.host,
+                port=1,
+                user=bag3d_db.user,
             )
             assert "TCP/IP connections on port 1?" in str(excinfo.value)
         with pytest.raises(OperationalError) as excinfo:
@@ -50,12 +53,16 @@ class TestDB:
 
 
 class TestSchema:
-    @pytest.fixture("class")
+    @pytest.fixture(scope="class")
     def relations(self):
         relations = {
             "schema": "tile_index",
             "table": "bag_index_test",
-            "fields": {"geometry": "geom", "primary_key": "id", "unit_name": "bladnr"},
+            "fields": {
+                "geometry": "geom",
+                "primary_key": "id",
+                "unit_name": "bladnr",
+            },
         }
         yield relations
 

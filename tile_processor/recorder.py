@@ -7,18 +7,8 @@ import sys
 from datetime import datetime
 
 from click import echo
-
-MODULE_PANDAS_AVAILABLE = True
-MODULE_MATPLOTLIB_AVAILABLE = True
-
-try:
-    import pandas
-except ImportError as e:
-    MODULE_PANDAS_AVAILABLE = False
-try:
-    import matplotlib.pyplot as plt
-except ImportError as e:
-    MODULE_MATPLOTLIB_AVAILABLE = False
+import pandas
+import matplotlib.pyplot as plt
 
 log = logging.getLogger(__name__)
 
@@ -51,7 +41,9 @@ def configure_ressource_logging() -> logging.Logger:
     log_res.setLevel(logging.DEBUG)
     handler = logging.FileHandler(logname, mode="w", encoding="utf-8")
     handler.setLevel(logging.DEBUG)
-    formatter = logging.Formatter("%(asctime)s\t%(message)s", "%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(
+        "%(asctime)s\t%(message)s", "%Y-%m-%d %H:%M:%S"
+    )
     handler.setFormatter(formatter)
     log_res.addHandler(handler)
     return log_res
@@ -61,14 +53,21 @@ def parse_log(logfile: str) -> pandas.DataFrame:
     """Reads a TSV log into a pandas dataframe
 
     :param logfile: Path to the logfile
-    :return: A dataframe
+    :return: A pandas dataframe
     """
     log = pandas.read_csv(
         logfile,
         parse_dates=True,
         sep="\t",
         header=None,
-        names=["timestamp", "tile", "pid", "cpu_time_user", "cpu_time_sys", "mem_rss"],
+        names=[
+            "timestamp",
+            "tile",
+            "pid",
+            "cpu_time_user",
+            "cpu_time_sys",
+            "mem_rss",
+        ],
         index_col=0,
     )
     # Convert memory usage in bytes to megabytes

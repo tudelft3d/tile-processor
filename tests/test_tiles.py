@@ -45,7 +45,9 @@ def elevation_tiles(bag3d_db, elevation_idx_sch) -> tileconfig.DbTiles:
 
 
 @pytest.fixture(scope="function")
-def feature_tiles(bag3d_db, features_idx_sch, features_sch) -> tileconfig.DbTiles:
+def feature_tiles(
+    bag3d_db, features_idx_sch, features_sch
+) -> tileconfig.DbTiles:
     return tileconfig.DbTiles(
         conn=bag3d_db,
         tile_index_schema=db.Schema(features_idx_sch),
@@ -113,7 +115,12 @@ class TestInit:
         )
 
     def test_init_ahntiles(
-        self, output_obj, bag3d_db, elevation_idx_sch, features_idx_sch, features_sch
+        self,
+        output_obj,
+        bag3d_db,
+        elevation_idx_sch,
+        features_idx_sch,
+        features_sch,
     ):
         tiles = tileconfig.DbTilesAHN(
             conn=bag3d_db,
@@ -134,7 +141,9 @@ class TestExtent:
         assert ewkb == polygons["ewkb"]
         assert poly.wkt == polygons["wkt"]
 
-    def test_within_extent(self, bag3d_db, polygons, features_idx_sch, features_sch):
+    def test_within_extent(
+        self, bag3d_db, polygons, features_idx_sch, features_sch
+    ):
         """Tile selection with a polygon should return the tiles that
         intersect with the polygon."""
         tiles = tileconfig.DbTiles(
@@ -255,7 +264,9 @@ class TestAHN:
     def test_versions(self, bag3d_db, elevation_tiles, feature_tiles):
         expectation = [2, 3]
         ahn_tiles = tileconfig.DbTilesAHN(
-            conn=bag3d_db, elevation_tiles=elevation_tiles, feature_tiles=feature_tiles
+            conn=bag3d_db,
+            elevation_tiles=elevation_tiles,
+            feature_tiles=feature_tiles,
         )
         result = ahn_tiles.versions()
         assert set(result) == set(expectation)
@@ -270,12 +281,16 @@ class TestAHN:
             "25gn1_14",
         ]
         ahn_tiles = tileconfig.DbTilesAHN(
-            conn=bag3d_db, elevation_tiles=elevation_tiles, feature_tiles=feature_tiles
+            conn=bag3d_db,
+            elevation_tiles=elevation_tiles,
+            feature_tiles=feature_tiles,
         )
         result = ahn_tiles.version_boundary()
         assert set(result) == set(expectation)
 
-    def test_version_not_boundary(self, bag3d_db, elevation_tiles, feature_tiles):
+    def test_version_not_boundary(
+        self, bag3d_db, elevation_tiles, feature_tiles
+    ):
         table = feature_tiles.tile_index.index.table.string
         if table == "bag_index_identical":
             expectation = {
@@ -293,7 +308,8 @@ class TestAHN:
             pytest.skip("No appropriate data for testing this branch")
         else:
             pytest.fail(
-                msg=f"Unexpected features_tiles.index.table " f"{table}", pytrace=False
+                msg=f"Unexpected features_tiles.index.table " f"{table}",
+                pytrace=False,
             )
 
     def test_configure_v3(self, ahn_tiles, directory_mapping):
@@ -301,7 +317,13 @@ class TestAHN:
         elevation tiles that are not on the boundary of AHN2-3."""
         table = ahn_tiles.feature_tiles.tile_index.index.table.string
         if table == "bag_index_identical":
-            expectation = ["25gn1_1", "25gn1_2", "25gn1_5", "25gn1_9", "25gn1_13"]
+            expectation = [
+                "25gn1_1",
+                "25gn1_2",
+                "25gn1_5",
+                "25gn1_9",
+                "25gn1_13",
+            ]
             ahn_tiles.configure(
                 tiles=["all"],
                 extent=None,
@@ -322,7 +344,8 @@ class TestAHN:
             assert set(ahn_tiles.to_process) == set(expectation)
         else:
             pytest.fail(
-                msg=f"Unexpected features_tiles.index.table " f"{table}", pytrace=False
+                msg=f"Unexpected features_tiles.index.table " f"{table}",
+                pytrace=False,
             )
 
     def test_configure_v2(self, ahn_tiles, directory_mapping):
@@ -330,7 +353,13 @@ class TestAHN:
         elevation tiles that are not on the boundary of AHN2-3."""
         table = ahn_tiles.feature_tiles.tile_index.index.table.string
         if table == "bag_index_identical":
-            expectation = ["25gn1_8", "25gn1_11", "25gn1_12", "25gn1_15", "25gn1_16"]
+            expectation = [
+                "25gn1_8",
+                "25gn1_11",
+                "25gn1_12",
+                "25gn1_15",
+                "25gn1_16",
+            ]
             ahn_tiles.configure(
                 tiles=["all"],
                 extent=None,
@@ -351,7 +380,8 @@ class TestAHN:
             assert set(ahn_tiles.to_process) == set(expectation)
         else:
             pytest.fail(
-                msg=f"Unexpected features_tiles.index.table " f"{table}", pytrace=False
+                msg=f"Unexpected features_tiles.index.table " f"{table}",
+                pytrace=False,
             )
 
     def test_configure_v2_list(self, ahn_tiles, directory_mapping):
@@ -378,7 +408,8 @@ class TestAHN:
             assert set(ahn_tiles.to_process) == set(expectation)
         else:
             pytest.fail(
-                msg=f"Unexpected features_tiles.index.table " f"{table}", pytrace=False
+                msg=f"Unexpected features_tiles.index.table " f"{table}",
+                pytrace=False,
             )
 
     def test_configure_border(self, ahn_tiles, directory_mapping):
@@ -397,7 +428,8 @@ class TestAHN:
             pytest.skip("No appropriate data for testing this branch")
         else:
             pytest.fail(
-                msg=f"Unexpected features_tiles.index.table " f"{table}", pytrace=False
+                msg=f"Unexpected features_tiles.index.table " f"{table}",
+                pytrace=False,
             )
 
     def test_configure_extent(self, ahn_tiles, polygons, directory_mapping):
@@ -438,7 +470,8 @@ class TestAHN:
             pytest.skip("No appropriate data for testing this branch")
         else:
             pytest.fail(
-                msg=f"Unexpected features_tiles.index.table " f"{table}", pytrace=False
+                msg=f"Unexpected features_tiles.index.table " f"{table}",
+                pytrace=False,
             )
 
     def test_create_file_index(self, directory_mapping, file_index_ahn):

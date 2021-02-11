@@ -10,7 +10,7 @@ from pathlib import Path
 
 from tile_processor import controller, recorder
 
-#@pytest.mark.integration_test
+@pytest.mark.integration_test
 class TestExample:
     def test_example(self, data_dir):
         tiles = ["25gn1_2", "25gn1_7", "25gn1_6"]
@@ -47,12 +47,15 @@ class TestExample:
             monitor_interval=None,
         )
         ctrl.configure(
-            tiles=tiles, processor_key="threadprocessor", worker_key="ExampleDb"
+            tiles=tiles,
+            processor_key="threadprocessor",
+            worker_key="ExampleDb",
         )
         ctrl.run()
         results = ctrl.run()
         for part, failed in results.items():
             assert len(failed) == 0
+
 
 @pytest.mark.integration_test
 class TestThreedfier:
@@ -75,7 +78,7 @@ class TestThreedfier:
         threedfier_controller.run()
 
 
-#@pytest.mark.integration_test
+@pytest.mark.integration_test
 class TestGeoflow:
     def test_for_debug(self, cfg_ahn_geof):
         """Running LoD1.3 reconstruction"""
@@ -95,13 +98,12 @@ class TestGeoflow:
         )
         lod13_controller.run()
 
+
 class TestTileExporter:
     def test_for_debug(self, cfg_ahn_export, output_dir):
         """Running LoD1.3 reconstruction"""
         threads = 1
-        tiles = [
-            "u1", "u2"
-        ]
+        tiles = ["u1", "u2"]
         lod13_controller = controller.factory.create(
             "AHN",
             configuration=cfg_ahn_export,
@@ -110,7 +112,9 @@ class TestTileExporter:
             monitor_interval=10,
         )
         lod13_controller.configure(
-            tiles=tiles, processor_key="threadprocessor", worker_key="TileExporter"
+            tiles=tiles,
+            processor_key="threadprocessor",
+            worker_key="TileExporter",
         )
         lod13_controller.cfg["config"]["out_dir"] = output_dir
         lod13_controller.run()

@@ -91,7 +91,9 @@ class ThreadProcessor:
         """
         log.info(f"Running {self.__class__.__name__}:{self.name}")
         proc_result = self._process()
-        failed_tiles = [tile for tile, result in proc_result if result is False]
+        failed_tiles = [
+            tile for tile, result in proc_result if result is False
+        ]
         _restart = 0
         while _restart < restart:
             if failed_tiles is not None and len(failed_tiles) > 0:
@@ -102,7 +104,9 @@ class ThreadProcessor:
                 )
                 self.tiles.to_process = failed_tiles
                 proc_result = self._process()
-                failed_tiles = [tile for tile, result in proc_result if result is False]
+                failed_tiles = [
+                    tile for tile, result in proc_result if result is False
+                ]
             else:
                 break
         log.info(f"Done {self.__class__.__name__}:{self.name}")

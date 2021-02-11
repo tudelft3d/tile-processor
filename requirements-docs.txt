@@ -1,0 +1,2 @@
+Sphinx>=3.4
+sphinx_autodoc_typehints>=1.11

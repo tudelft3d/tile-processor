@@ -29,7 +29,11 @@ class Db(object):
         self.schema = schema
         try:
             self.conn = psycopg2.connect(
-                dbname=dbname, host=host, port=port, user=user, password=password
+                dbname=dbname,
+                host=host,
+                port=port,
+                user=user,
+                password=password,
             )
             log.debug(f"Opened connection to {self.conn.get_dsn_parameters()}")
         except psycopg2.OperationalError:
@@ -53,7 +57,9 @@ class Db(object):
     def get_dict(self, query: psycopg2.sql.Composable) -> dict:
         """DB query where the results need to return as a dictionary."""
         with self.conn:
-            with self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            with self.conn.cursor(
+                cursor_factory=psycopg2.extras.RealDictCursor
+            ) as cur:
                 cur.execute(query)
                 return cur.fetchall()
 
@@ -72,7 +78,9 @@ class Db(object):
 
     def vacuum(self, schema: str, table: str):
         """Vacuum analyze a table."""
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        self.conn.set_isolation_level(
+            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+        )
         schema = psycopg2.sql.Identifier(schema)
         table = psycopg2.sql.Identifier(table)
         query = psycopg2.sql.SQL(
@@ -84,7 +92,9 @@ class Db(object):
 
     def vacuum_full(self):
         """Vacuum analyze the whole database."""
-        self.conn.set_isolation_level(psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT)
+        self.conn.set_isolation_level(
+            psycopg2.extensions.ISOLATION_LEVEL_AUTOCOMMIT
+        )
         query = psycopg2.sql.SQL("VACUUM ANALYZE;")
         self.send_query(query)
 

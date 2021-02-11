@@ -12,7 +12,9 @@ log = logging.getLogger(__name__)
 
 
 class Output:
-    def __init__(self, dir: "DirOutput" = None, db: "DbOutput" = None, kwargs=None):
+    def __init__(
+        self, dir: "DirOutput" = None, db: "DbOutput" = None, kwargs=None
+    ):
         if kwargs is None:
             kwargs = {}
         self.dir = dir
@@ -121,7 +123,7 @@ class DbOutput:
         """
         i = self.dsn.find("tables")
         if self.schema:
-            _tbl = '.'.join([self.schema, table])
+            _tbl = ".".join([self.schema, table])
         else:
             _tbl = table
         if i >= 0:

@@ -12,10 +12,8 @@ import json
 import logging
 import os
 from shutil import copyfile
-from typing import TextIO, List, Union
+from typing import TextIO, List
 
-import pykwalify.core
-import pykwalify.errors
 import yaml
 from click import echo, secho, exceptions
 
@@ -122,21 +120,26 @@ class ConfigurationSchema:
         Validation is done with `pykwalify
         <https://pykwalify.readthedocs.io/en/master/>`_.
         """
+        # FIXME: do something about the schemas, either remove completely or use
+        #  another library for validation. But better remove completely
         if config is None:
             log.warning(f"config is None")
             return None
         cfg = yaml.load(config, Loader=yaml.FullLoader)
-        if self.schema:
-            try:
-                c = pykwalify.core.Core(source_data=cfg, schema_data=self.schema)
-                # return the validated configuration
-                return c.validate(raise_exception=True)
-            except pykwalify.errors.PyKwalifyException:
-                log.exception("Configuration file is not valid")
-                raise
-        else:
-            log.warning("There is no registered schema, skipping validation")
-            return cfg
+        # if self.schema:
+        #     try:
+        #         c = pykwalify.core.Core(
+        #             source_data=cfg, schema_data=self.schema
+        #         )
+        #         # return the validated configuration
+        #         return c.validate(raise_exception=True)
+        #     except pykwalify.errors.PyKwalifyException:
+        #         log.exception("Configuration file is not valid")
+        #         raise
+        # else:
+        #     log.warning("There is no registered schema, skipping validation")
+        #     return cfg
+        return cfg
 
 
 class ControllerFactory:
@@ -237,7 +240,9 @@ class Controller:
             _tilescfg.output = output.Output(
                 dir=output.DirOutput(out_dir.join_path(part))
             )
-            proc = processor.factory.create(processor_key, name=part, tiles=_tilescfg)
+            proc = processor.factory.create(
+                processor_key, name=part, tiles=_tilescfg
+            )
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
@@ -276,7 +281,9 @@ class ExampleController(Controller):
             # For the ExampleDb worker
             tilescfg = tileconfig.DbTiles(
                 conn=db.Db(**self.cfg["config"]["database"]),
-                tile_index_schema=db.Schema(self.cfg["config"]["features_tiles"]),
+                tile_index_schema=db.Schema(
+                    self.cfg["config"]["features_tiles"]
+                ),
                 features_schema=db.Schema(self.cfg["config"]["features"]),
             )
             tilescfg.configure(tiles=tiles)
@@ -290,7 +297,9 @@ class ExampleController(Controller):
             _tilescfg.output = output.Output(
                 dir=output.DirOutput(out_dir.join_path(part))
             )
-            proc = processor.factory.create(processor_key, name=part, tiles=_tilescfg)
+            proc = processor.factory.create(
+                processor_key, name=part, tiles=_tilescfg
+            )
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
@@ -331,7 +340,8 @@ class AHNController(Controller):
                 dir, properties = mapping.popitem()
                 if not os.path.isabs(dir):
                     raise ValueError(
-                        f"Path {dir} is not absolute in " f"elevation:directories"
+                        f"Path {dir} is not absolute in "
+                        f"elevation:directories"
                     )
                 directory_mapping[dir] = properties
             cfg["config"]["directory_mapping"] = directory_mapping
@@ -341,7 +351,9 @@ class AHNController(Controller):
             cfg["monitor_interval"] = monitor_interval
             return cfg
 
-    def configure(self, tiles, processor_key: str, worker_key: str, restart: int = 0):
+    def configure(
+        self, tiles, processor_key: str, worker_key: str, restart: int = 0
+    ):
         """Configure the control logic."""
         worker_init = worker.factory.create(worker_key)
         self.cfg["worker"] = worker_init.execute
@@ -359,7 +371,9 @@ class AHNController(Controller):
         )
         # Configure feature tiles with elevation from AHN3
         ahntiles = tileconfig.DbTilesAHN(
-            conn=conn, elevation_tiles=elevation_tiles, feature_tiles=feature_tiles
+            conn=conn,
+            elevation_tiles=elevation_tiles,
+            feature_tiles=feature_tiles,
         )
         ahntiles.configure(
             tiles=tiles,
@@ -374,19 +388,24 @@ class AHNController(Controller):
                 conn=db.Db(**self.cfg["config"]["output"]["database"])
             )
         elif "dir" in self.cfg["config"]["output"]:
-            output_obj.dir = output.DirOutput(path=self.cfg["config"]["output"]["dir"])
+            output_obj.dir = output.DirOutput(
+                path=self.cfg["config"]["output"]["dir"]
+            )
         for k, v in self.cfg["config"]["output"].items():
             if k != "database" and k != "dir":
                 output_obj.kwargs[k] = v
         ahntiles.output = output_obj
         name = "part1"
-        proc = processor.factory.create(processor_key, name=name, tiles=ahntiles)
+        proc = processor.factory.create(
+            processor_key, name=name, tiles=ahntiles
+        )
         self.processors[proc] = name
         log.info(f"Configured {self.__class__.__name__}")
 
 
 class AhnTinController(AHNController):
     """Controller for AHN when the AHN tile boundaries are the features themselves."""
+
     def configure(self, tiles, processor_key: str, worker_key: str):
         """Configure the control logic."""
         worker_init = worker.factory.create(worker_key)
@@ -411,9 +430,13 @@ class AhnTinController(AHNController):
         for i, ahn_id in enumerate(elevation_tiles.to_process):
             paths = []
             if ahn_id in elevation_file_paths:
-                paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+                paths.extend(
+                    (p, ahn_version) for p in elevation_file_paths[ahn_id]
+                )
             else:
-                log.debug(f"File matching the AHN ID {ahn_id} not found, skipping tile")
+                log.debug(
+                    f"File matching the AHN ID {ahn_id} not found, skipping tile"
+                )
                 del ahntiles.to_process[i]
             ahntiles.elevation_file_index[ahn_id] = paths
         # Set up outputs
@@ -423,13 +446,17 @@ class AhnTinController(AHNController):
                 conn=db.Db(**self.cfg["config"]["output"]["database"])
             )
         elif "dir" in self.cfg["config"]["output"]:
-            output_obj.dir = output.DirOutput(path=self.cfg["config"]["output"]["dir"])
+            output_obj.dir = output.DirOutput(
+                path=self.cfg["config"]["output"]["dir"]
+            )
         for k, v in self.cfg["config"]["output"].items():
             if k != "database" and k != "dir":
                 output_obj.kwargs[k] = v
         ahntiles.output = output_obj
         name = "part1"
-        proc = processor.factory.create(processor_key, name=name, tiles=ahntiles)
+        proc = processor.factory.create(
+            processor_key, name=name, tiles=ahntiles
+        )
         self.processors[proc] = name
         log.info(f"Configured {self.__class__.__name__}")
 
@@ -470,7 +497,8 @@ class AHNBoundaryController(Controller):
                 dir, properties = mapping.popitem()
                 if not os.path.isabs(dir):
                     raise ValueError(
-                        f"Path {dir} is not absolute in " f"elevation:directories"
+                        f"Path {dir} is not absolute in "
+                        f"elevation:directories"
                     )
                 directory_mapping[dir] = properties
             cfg["config"]["directory_mapping"] = directory_mapping
@@ -488,8 +516,12 @@ class AHNBoundaryController(Controller):
         # Configure the tiles
         _tilecfg = {
             "conn": db.Db(**self.cfg["config"]["database"]),
-            "elevation_index_schema": db.Schema(self.cfg["config"]["elevation_tiles"]),
-            "tile_index_schema": db.Schema(self.cfg["config"]["features_tiles"]),
+            "elevation_index_schema": db.Schema(
+                self.cfg["config"]["elevation_tiles"]
+            ),
+            "tile_index_schema": db.Schema(
+                self.cfg["config"]["features_tiles"]
+            ),
             "features_schema": db.Schema(self.cfg["config"]["features"]),
         }
         conn = db.Db(**self.cfg["config"]["database"])
@@ -504,7 +536,9 @@ class AHNBoundaryController(Controller):
         )
         # Configure feature tiles with elevation from AHN2
         ahn_2 = tileconfig.DbTilesAHN(
-            conn=conn, elevation_tiles=elevation_tiles, feature_tiles=feature_tiles
+            conn=conn,
+            elevation_tiles=elevation_tiles,
+            feature_tiles=feature_tiles,
         )
         ahn_2.configure(
             tiles=tiles,
@@ -514,7 +548,9 @@ class AHNBoundaryController(Controller):
         )
         # Configure feature tiles with elevation from AHN3
         ahn_3 = tileconfig.DbTilesAHN(
-            conn=conn, elevation_tiles=elevation_tiles, feature_tiles=feature_tiles
+            conn=conn,
+            elevation_tiles=elevation_tiles,
+            feature_tiles=feature_tiles,
         )
         ahn_3.configure(
             tiles=tiles,
@@ -524,7 +560,9 @@ class AHNBoundaryController(Controller):
         )
         # Configure feature tiles that are on the border of AHN2 and AHN3
         ahn_border = tileconfig.DbTilesAHN(
-            conn=conn, elevation_tiles=elevation_tiles, feature_tiles=feature_tiles
+            conn=conn,
+            elevation_tiles=elevation_tiles,
+            feature_tiles=feature_tiles,
         )
         ahn_border.configure(
             tiles=tiles,
@@ -540,7 +578,9 @@ class AHNBoundaryController(Controller):
             ahntiles.output = output.Output(
                 dir=output.DirOutput(out_dir.join_path(part))
             )
-            proc = processor.factory.create(processor_key, name=part, tiles=ahntiles)
+            proc = processor.factory.create(
+                processor_key, name=part, tiles=ahntiles
+            )
             self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 
@@ -565,7 +605,9 @@ class AHNTINBoundaryController(AHNBoundaryController):
         ahntiles.output = output.Output(
             dir=output.DirOutput(self.cfg["config"]["output"]["dir"])
         )
-        proc = processor.factory.create(processor_key, name=part, tiles=ahntiles)
+        proc = processor.factory.create(
+            processor_key, name=part, tiles=ahntiles
+        )
         self.processors[proc] = part
         log.info(f"Configured {self.__class__.__name__}")
 

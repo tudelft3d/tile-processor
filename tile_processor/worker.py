@@ -179,7 +179,13 @@ class ThreedfierWorker:
         return yml
 
     def execute(
-        self, tile, tiles, path_executable, monitor_log, monitor_interval, **ignore
+        self,
+        tile,
+        tiles,
+        path_executable,
+        monitor_log,
+        monitor_interval,
+        **ignore,
     ) -> bool:
         """
 
@@ -197,7 +203,9 @@ class ThreedfierWorker:
             return False
         else:
             yml = self.create_yaml(
-                tile=tile, dbtilesahn=tiles, ahn_paths=tiles.elevation_file_index[tile]
+                tile=tile,
+                dbtilesahn=tiles,
+                ahn_paths=tiles.elevation_file_index[tile],
             )
             yml_path = str(tiles.output.dir.join_path(f"{tile}.yml"))
             try:
@@ -330,7 +338,9 @@ class ThreedfierTINWorker:
             except BaseException as e:
                 log.exception(f"Error: cannot write {yml_path}")
 
-            output_path = str(tiles.output.dir.join_path(f"{tile}.{out_format_ext}"))
+            output_path = str(
+                tiles.output.dir.join_path(f"{tile}.{out_format_ext}")
+            )
             command = [path_executable, yml_path, out_format, output_path]
             try:
                 success = run_subprocess(
@@ -357,9 +367,18 @@ class Geoflow:
         """Create a tile-specific configuration file."""
         pass
 
-    def execute(self, tile: str, tiles: DbTilesAHN, path_executable: str,
-                path_flowchart: str, path_toml: str, monitor_log: logging.Logger,
-                monitor_interval: int, doexec: bool = True, **ignore) -> bool:
+    def execute(
+        self,
+        tile: str,
+        tiles: DbTilesAHN,
+        path_executable: str,
+        path_flowchart: str,
+        path_toml: str,
+        monitor_log: logging.Logger,
+        monitor_interval: int,
+        doexec: bool = True,
+        **ignore,
+    ) -> bool:
         """Execute Geoflow.
 
         :param path_toml:
@@ -380,7 +399,12 @@ class Geoflow:
         config = self.create_configuration(tile=tile, tiles=tiles)
         if config is not None and len(config) > 0:
             if path_toml is not None and len(path_toml) > 0:
-                command = [path_executable, path_flowchart, '--config', path_toml] + config
+                command = [
+                    path_executable,
+                    path_flowchart,
+                    "--config",
+                    path_toml,
+                ] + config
             else:
                 command = [path_executable, path_flowchart] + config
             try:
@@ -423,13 +447,13 @@ class LoD13Worker(Geoflow):
             if tiles.output.db.schema is not None:
                 out_layer_template = f"{tiles.output.db.schema}.{tiles.output.kwargs['table_prefix']}"
             else:
-                out_layer_template = tiles.output.kwargs['table_prefix']
-            t_lod12_2d = out_layer_template + 'lod12_2d'
-            t_lod12_3d = out_layer_template + 'lod12_3d'
-            t_lod13_2d = out_layer_template + 'lod13_2d'
-            t_lod13_3d = out_layer_template + 'lod13_3d'
-            t_lod22_2d = out_layer_template + 'lod22_2d'
-            t_lod22_3d = out_layer_template + 'lod22_3d'
+                out_layer_template = tiles.output.kwargs["table_prefix"]
+            t_lod12_2d = out_layer_template + "lod12_2d"
+            t_lod12_3d = out_layer_template + "lod12_3d"
+            t_lod13_2d = out_layer_template + "lod13_2d"
+            t_lod13_3d = out_layer_template + "lod13_3d"
+            t_lod22_2d = out_layer_template + "lod22_2d"
+            t_lod22_3d = out_layer_template + "lod22_3d"
             format_out = "PostgreSQL"
         else:
             raise ValueError(f"Invalid Output type {type(tiles.output)}")
@@ -467,7 +491,9 @@ class AlphaShapeWorker(Geoflow):
         input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
         # --OUTPUT_LAYER_PREFIX and table name in tables= in the --OUTPUT_SOURCE must
         # be the same.
-        table_name = tiles.output.kwargs['table_prefix'] + 'alpha_shape_buildings'
+        table_name = (
+            tiles.output.kwargs["table_prefix"] + "alpha_shape_buildings"
+        )
         # Create the output connection string
         if tiles.output.db is not None:
             dsn_out = tiles.output.db.with_table(table_name)
@@ -486,9 +512,18 @@ class AlphaShapeWorker(Geoflow):
 
 
 class TileExporter:
-    def execute(self, tile: str, tiles: DbTilesAHN, path_lasmerge,
-                path_ogr2ogr, out_dir, monitor_log: logging.Logger,
-                monitor_interval: int, doexec: bool = True, **ignore) -> bool:
+    def execute(
+        self,
+        tile: str,
+        tiles: DbTilesAHN,
+        path_lasmerge,
+        path_ogr2ogr,
+        out_dir,
+        monitor_log: logging.Logger,
+        monitor_interval: int,
+        doexec: bool = True,
+        **ignore,
+    ) -> bool:
         log.debug(f"Running {self.__class__.__name__}:{tile}")
         results = []
         # Create the Postgres connection string
@@ -510,8 +545,14 @@ class TileExporter:
             return False
 
         log.debug(f"Exporting footprints to GPKG:{tile}")
-        #FIXME: this doesnt work on windows
-        command = [path_ogr2ogr, "-f", "GPKG", f"{out_dir}/{tile}.gpkg", dsn_in]
+        # FIXME: this doesnt work on windows
+        command = [
+            path_ogr2ogr,
+            "-f",
+            "GPKG",
+            f"{out_dir}/{tile}.gpkg",
+            dsn_in,
+        ]
         try:
             success = run_subprocess(
                 command,
@@ -588,7 +629,11 @@ def run_subprocess(
                     f"{tile_id}\t{popen.pid}\t{popen.cpu_times().user}"
                     f"\t{popen.memory_info().rss}"
                 )
-                if not popen.is_running() or popen.status() == STATUS_ZOMBIE or popen.status() == STATUS_SLEEPING:
+                if (
+                    not popen.is_running()
+                    or popen.status() == STATUS_ZOMBIE
+                    or popen.status() == STATUS_SLEEPING
+                ):
                     break
         stdout, stderr = popen.communicate()
         err = stderr.decode(getpreferredencoding(do_setlocale=True))

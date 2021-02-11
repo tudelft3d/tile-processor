@@ -3,5 +3,5 @@
 """Top-level package for Tile Runner."""
 
 __author__ = """Balázs Dukai"""
-__email__ = 'b.dukai@tudelft.nl'
-__version__ = '0.1.0'
+__email__ = "b.dukai@tudelft.nl"
+__version__ = "0.1.0"

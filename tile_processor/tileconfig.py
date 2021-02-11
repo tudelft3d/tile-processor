@@ -10,11 +10,8 @@ from random import shuffle
 from typing import Sequence, Tuple, Union, List, Mapping
 from abc import ABC, abstractmethod
 
-import fiona
 from psycopg2 import sql
 from psycopg2 import Error as pgError
-from shapely import geos
-from shapely.geometry import shape, Polygon
 
 from tile_processor import db, output
 
@@ -70,7 +67,9 @@ class DbTiles(Tiles):
         self.tile_index = tile_index_schema
         self.features = features_schema
 
-    def configure(self, tiles: Sequence[str] = None, extent: str = None) -> None:
+    def configure(
+        self, tiles: Sequence[str] = None, extent: str = None
+    ) -> None:
         """Configure the tiles for processing.
 
         You can provide either `tiles` or `extent`.
@@ -97,7 +96,7 @@ class DbTiles(Tiles):
         return self.within_extent(ewkb=ewkb)
 
     @staticmethod
-    def read_extent(extent: str) -> Tuple[Polygon, str]:
+    def read_extent(extent: str) -> None:
         """Reads a polygon from a file and returns it as Shapely polygon and
         EWKB.
 
@@ -105,22 +104,26 @@ class DbTiles(Tiles):
         :return: A tuple of (Shapely Polygon, EWKB). If the extent doesn't have
             a CRS, then a WKB is returned instead of the EWKB.
         """
-        pattern = re.compile(r"(?<=epsg:)\d+", re.IGNORECASE)
-        # Get clip polygon and set SRID
-        with fiona.open(extent, "r") as src:
-            epsg = pattern.search(src.crs["init"]).group()
-            poly = shape(src[0]["geometry"])
-            if epsg is None:
-                log.warning(f"Did not find the EPSG code of the CRS: {src.crs}")
-                wkb = poly.wkb_hex
-                return poly, wkb
-            else:
-                # Change a the default mode to add this, if SRID is set
-                geos.WKBWriter.defaults["include_srid"] = True
-                # set SRID for polygon
-                geos.lgeos.GEOSSetSRID(poly._geom, int(epsg))
-                ewkb = poly.wkb_hex
-                return poly, ewkb
+        raise NotImplementedError(
+            "FIXME: reading geojson is superfluous, read WKT instead"
+        )
+        # FIXME: reading geojson is superfluous, read WKT instead
+        # pattern = re.compile(r"(?<=epsg:)\d+", re.IGNORECASE)
+        # # Get clip polygon and set SRID
+        # with fiona.open(extent, "r") as src:
+        #     epsg = pattern.search(src.crs["init"]).group()
+        #     poly = shape(src[0]["geometry"])
+        #     if epsg is None:
+        #         log.warning(f"Did not find the EPSG code of the CRS: {src.crs}")
+        #         wkb = poly.wkb_hex
+        #         return poly, wkb
+        #     else:
+        #         # Change a the default mode to add this, if SRID is set
+        #         geos.WKBWriter.defaults["include_srid"] = True
+        #         # set SRID for polygon
+        #         geos.lgeos.GEOSSetSRID(poly._geom, int(epsg))
+        #         ewkb = poly.wkb_hex
+        #         return poly, ewkb
 
     def within_extent(self, ewkb: str, reorder: bool = True) -> List[str]:
         """Get a list of tiles that are within the extent."""
@@ -154,11 +157,13 @@ class DbTiles(Tiles):
             query_params = {
                 "features": self.features.schema + self.features.table,
                 "feature_pk": self.features.table + self.features.field.pk,
-                "feature_geom": self.features.table + self.features.field.geometry,
+                "feature_geom": self.features.table
+                + self.features.field.geometry,
                 "tile_index": self.tile_index.index.schema
                 + self.tile_index.index.table,
                 "ewkb": sql.Literal(ewkb),
-                "tile": self.tile_index.index.table + self.tile_index.index.field.tile,
+                "tile": self.tile_index.index.table
+                + self.tile_index.index.field.tile,
                 "index_pk": self.tile_index.index.table
                 + self.tile_index.index.field.pk,
             }
@@ -197,7 +202,9 @@ class DbTiles(Tiles):
             log.info("Verifying if the provided tiles are in the index.")
             in_index = self.tiles_in_index(tiles)
         if len(in_index) == 0:
-            raise ValueError("None of the provided tiles are present in the" " index.")
+            raise ValueError(
+                "None of the provided tiles are present in the" " index."
+            )
         else:
             return in_index
 
@@ -266,9 +273,7 @@ class DbTilesAHN(Tiles):
         self.conn = conn
         self.elevation_tiles = elevation_tiles
         self.feature_tiles = feature_tiles
-        self.elevation_file_index = (
-            None  # { feature tile ID: [ (matching AHN file path, AHN version), ... ] }
-        )
+        self.elevation_file_index = None  # { feature tile ID: [ (matching AHN file path, AHN version), ... ] }
         self.feature_views = None
 
     def configure(
@@ -303,7 +308,9 @@ class DbTilesAHN(Tiles):
         self.feature_tiles.configure(tiles=tiles, extent=extent)
         # Find the available AHN files for each feature tile
         self.elevation_file_index = dict()
-        elevation_file_paths = self.create_elevation_file_index(directory_mapping)
+        elevation_file_paths = self.create_elevation_file_index(
+            directory_mapping
+        )
         # This below is the meat of this class. It further configures the
         # tile list by selecting the latest AHN version that is available
         # on the filesystem
@@ -316,9 +323,14 @@ class DbTilesAHN(Tiles):
                 paths = []
                 for ahn_id, ahn_version in elevation_match.items():
                     if ahn_id in elevation_file_paths:
-                        paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+                        paths.extend(
+                            (p, ahn_version)
+                            for p in elevation_file_paths[ahn_id]
+                        )
                     else:
-                        log.debug(f"File matching the AHN ID {ahn_id} not found")
+                        log.debug(
+                            f"File matching the AHN ID {ahn_id} not found"
+                        )
                 self.elevation_file_index[tile] = paths
                 # Create tile views
                 self.feature_views[tile] = self.create_tile_view(tile, tin=tin)
@@ -334,7 +346,9 @@ class DbTilesAHN(Tiles):
                 if len(tiles_per_version) > 0:
                     version_set = set(tiles_per_version[version])
                     process_set = set(self.feature_tiles.to_process)
-                    self.to_process = list(version_set.intersection(process_set))
+                    self.to_process = list(
+                        version_set.intersection(process_set)
+                    )
                     for tile in self.to_process:
                         elevation_match = self.match_elevation_tile(
                             feature_tile=tile, idx_identical=False
@@ -342,15 +356,19 @@ class DbTilesAHN(Tiles):
                         paths = []
                         for ahn_id, ahn_version in elevation_match.items():
                             paths.extend(
-                                (p, ahn_version) for p in elevation_file_paths[ahn_id]
+                                (p, ahn_version)
+                                for p in elevation_file_paths[ahn_id]
                             )
                         self.elevation_file_index[tile] = paths
                         # Create tile views
-                        self.feature_views[tile] = self.create_tile_view(tile, tin=tin)
+                        self.feature_views[tile] = self.create_tile_view(
+                            tile, tin=tin
+                        )
                     del paths, elevation_file_paths, elevation_match
                 else:
                     log.warning(
-                        f"Did not find any feature tiles for " f"AHN version {version}"
+                        f"Did not find any feature tiles for "
+                        f"AHN version {version}"
                     )
                 log.info(f"{self.__class__.__name__} configuration done.")
         elif on_border:
@@ -363,7 +381,9 @@ class DbTilesAHN(Tiles):
                 )
                 paths = []
                 for ahn_id, ahn_version in elevation_match.items():
-                    paths.extend((p, ahn_version) for p in elevation_file_paths[ahn_id])
+                    paths.extend(
+                        (p, ahn_version) for p in elevation_file_paths[ahn_id]
+                    )
                 self.elevation_file_index[tile] = paths
                 # Create tile views
                 self.feature_views[tile] = self.create_tile_view(tile, tin=tin)
@@ -560,7 +580,9 @@ class DbTilesAHN(Tiles):
         log.debug(self.conn.print_query(query))
         return {key: value for key, value in self.conn.get_query(query)}
 
-    def match_elevation_tile(self, feature_tile: str, idx_identical: bool = True):
+    def match_elevation_tile(
+        self, feature_tile: str, idx_identical: bool = True
+    ):
         """Find the elevation tiles that match the footprint tile.
 
         :param feature_tile: ID of the feature tile
@@ -577,7 +599,7 @@ class DbTilesAHN(Tiles):
                 "feature_tile": sql.Literal(feature_tile),
             }
             query = sql.SQL(
-            """
+                """
             SELECT
                 {elevation_tiles},
                 {elevation_version}
@@ -668,14 +690,17 @@ class DbTilesAHN(Tiles):
                 "uniqueid": self.feature_tiles.tile_index.boundaries.field.uniqueid.sqlid,
                 "tile": sql.Literal(feature_tile),
             }
-            query = sql.SQL("""
+            query = sql.SQL(
+                """
             CREATE OR REPLACE VIEW {view}
             AS SELECT * FROM {feature_table} WHERE {uniqueid} = {tile};
             """
             ).format(**query_params)
             log.debug(self.conn.print_query(query))
         else:
-            view_sql = sql.Identifier(self.feature_tiles.features.schema.string, view)
+            view_sql = sql.Identifier(
+                self.feature_tiles.features.schema.string, view
+            )
             query_params = {
                 "view": view_sql,
                 "features": self.feature_tiles.features.schema
@@ -687,7 +712,8 @@ class DbTilesAHN(Tiles):
                 "fi_tileid": self.feature_tiles.tile_index.index.field.tile.sqlid,
                 "tile": sql.Literal(feature_tile),
             }
-            query = sql.SQL("""
+            query = sql.SQL(
+                """
             CREATE OR REPLACE VIEW {view}
             AS SELECT f.* 
             FROM {features} f 

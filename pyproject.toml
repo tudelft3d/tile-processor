@@ -1,0 +1,40 @@
+[build-system]
+requires = [
+  "setuptools >= 40.9.0",
+  "wheel",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+target-version=["py38"]
+line-length = 79
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.hg
+  | \.pytest_cache
+  | \.tox
+  | \.venv
+  | _build
+  | build
+  | dist
+  | docker
+  | tmp
+  | tests/data
+)/
+'''
+
+[bdist_wheel]
+universal = 1
+
+[aliases]
+# Define setup.py command aliases here
+test = "pytest"
+
+[tool.pytest.ini_options]
+collect_ignore = ['setup.py']
+markers = [
+	"integration-test: mark integration tests",
+	"slow-integration-test: mark slow integration tests"
+]

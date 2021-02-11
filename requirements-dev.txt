@@ -1,0 +1,10 @@
+pip>=20.2
+bump2version>=1.0
+wheel>=0.35
+watchdog>=0.10
+flake8>=3.8
+black>=19.10
+coverage>=5.3
+
+pytest>=6.2
+pytest-runner>=5.2

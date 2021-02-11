@@ -12,12 +12,13 @@ from tile_processor import recorder, controller, worker
 
 @click.group()
 @click.option(
-    '--log',
+    "--log",
     type=click.Choice(
-        ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'],
-        case_sensitive=False),
-    default='INFO',
-    help="Set the logging level in the log file 'cjdb.log'.")
+        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+    help="Set the logging level in the log file 'cjdb.log'.",
+)
 @click.option("--quiet", "-q", count=True, help="Decrease verbosity.")
 @click.option(
     "--monitor",
@@ -50,7 +51,8 @@ def main(ctx, log, quiet, monitor):
     type=click.Choice(controller.factory._controllers, case_sensitive=False),
 )
 @click.argument(
-    "worker_key", type=click.Choice(worker.factory._executors, case_sensitive=False)
+    "worker_key",
+    type=click.Choice(worker.factory._executors, case_sensitive=False),
 )
 @click.argument("configuration", type=click.File("r"))
 @click.argument("tiles", type=str, nargs=-1)
@@ -58,7 +60,8 @@ def main(ctx, log, quiet, monitor):
     "--threads",
     type=int,
     default=3,
-    help="Max. number of worker instances to start, " "each on a separate thread",
+    help="Max. number of worker instances to start, "
+    "each on a separate thread",
 )
 @click.option(
     "--restart",
@@ -67,7 +70,9 @@ def main(ctx, log, quiet, monitor):
     help="Nr. of times to restart the failed tiles. Default 0, means no restart.",
 )
 @click.pass_context
-def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads, restart):
+def run_cmd(
+    ctx, controller_key, worker_key, configuration, tiles, threads, restart
+):
     """Run a process on multiple threads."""
     logger = ctx.obj["log"]
     logger.debug(f"Controller key: {controller_key}")
@@ -81,25 +86,31 @@ def run_cmd(ctx, controller_key, worker_key, configuration, tiles, threads, rest
         monitor_interval=ctx.obj["monitor_interval"],
     )
     ctrl.configure(
-        tiles=list(tiles), processor_key="threadprocessor", worker_key=worker_key
+        tiles=list(tiles),
+        processor_key="threadprocessor",
+        worker_key=worker_key,
     )
     ctrl.run(restart=restart)
     finish = time()
     logger.info(f"Tile-processor completed in {(finish-start)/60} minutes")
     return 0
 
+
 @click.command("export_tile_inputs")
 @click.argument(
     "controller_key",
-    type=click.Choice(controller.factory._controllers, case_sensitive=False)
+    type=click.Choice(controller.factory._controllers, case_sensitive=False),
 )
 @click.argument("configuration", type=click.File("r"))
 @click.argument("tiles", type=str, nargs=-1)
-@click.argument("out_dir", type=click.Path(resolve_path=True, writable=True,
-                exists=True, file_okay=False))
+@click.argument(
+    "out_dir",
+    type=click.Path(
+        resolve_path=True, writable=True, exists=True, file_okay=False
+    ),
+)
 @click.pass_context
-def export_tile_inputs_cmd(ctx, controller_key, configuration, tiles,
-                           out_dir):
+def export_tile_inputs_cmd(ctx, controller_key, configuration, tiles, out_dir):
     """Export the input footprints and point cloud for a list of tiles.
 
     CONFIGURATION is the yaml configuration file that is used for the 'run' command.
@@ -123,7 +134,7 @@ def export_tile_inputs_cmd(ctx, controller_key, configuration, tiles,
     ctrl.configure(
         tiles=list(tiles),
         processor_key="threadprocessor",
-        worker_key=worker_key
+        worker_key=worker_key,
     )
     ctrl.cfg["config"]["out_dir"] = out_dir
     ctrl.run()
