@@ -324,15 +324,20 @@ class AHNController(Controller):
         """
         cfg = {}
         if configuration is None:
-            log.error("Configuration file is empty")
+            log.error("Configuration is empty")
             return cfg
         else:
-            try:
-                cfg_stream = self.schema.validate_configuration(configuration)
-                log.info(f"Configuration file is valid")
-            except Exception as e:
-                log.exception(e)
-                raise
+            if isinstance(configuration, TextIO):
+                try:
+                    cfg_stream = self.schema.validate_configuration(configuration)
+                    log.info(f"Configuration file is valid")
+                except Exception as e:
+                    log.exception(e)
+                    raise
+            elif isinstance(configuration, dict):
+                cfg_stream = configuration
+            else:
+                raise ValueError("configuration is neither TextIO nor a dictionary")
 
             cfg["config"] = cfg_stream
             directory_mapping = {}
@@ -481,15 +486,21 @@ class AHNBoundaryController(Controller):
         """
         cfg = {}
         if configuration is None:
-            log.error("Configuration file is empty")
+            log.error("Configuration is empty")
             return cfg
         else:
-            try:
-                cfg_stream = self.schema.validate_configuration(configuration)
-                log.info(f"Configuration file is valid")
-            except Exception as e:
-                log.exception(e)
-                raise
+            if isinstance(configuration, TextIO):
+                try:
+                    cfg_stream = self.schema.validate_configuration(configuration)
+                    log.info(f"Configuration file is valid")
+                except Exception as e:
+                    log.exception(e)
+                    raise
+            elif isinstance(configuration, dict):
+                cfg_stream = configuration
+            else:
+                raise ValueError("configuration is neither TextIO nor a dictionary")
+
 
             cfg["config"] = cfg_stream
             directory_mapping = {}
