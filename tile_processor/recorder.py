@@ -5,6 +5,7 @@
 import logging
 import sys
 from datetime import datetime
+from typing import Optional
 
 from click import echo
 import pandas
@@ -13,15 +14,29 @@ import matplotlib.pyplot as plt
 log = logging.getLogger(__name__)
 
 
-def configure_logging(loglevel):
-    """Configures the general logging in the application"""
-    log_level = getattr(logging, loglevel.upper(), None)
-    logging.basicConfig(
-        stream=sys.stdout,
-        level=log_level,
-        format="%(asctime)s\t%(name)-24s\t%(lineno)s\t[%(levelname)-8s]\t%(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+def configure_logging(log_level_stream, filename: Optional[str] = None,
+                      log_level_file=None):
+    """Configures the general logging in the application
+    :param log_level_file:
+    """
+    log_level_str = getattr(logging, log_level_stream.upper(), None)
+
+    logger = logging.getLogger("tile_processor")
+    logger.propagate = True
+
+    formatter = logging.Formatter(
+        fmt="%(asctime)s\t%(name)-24s\t%(lineno)s\t[%(levelname)-8s]\t%(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
     )
+    if filename:
+        f_handler = logging.FileHandler(filename, mode="w", encoding="utf-8")
+        f_handler.setFormatter(formatter)
+        f_handler.setLevel(getattr(logging, log_level_file.upper(), None))
+        logger.addHandler(f_handler)
+    c_handler = logging.StreamHandler(stream=sys.stdout)
+    c_handler.setLevel(log_level_str)
+    logger.addHandler(c_handler)
+    return logger
 
 
 def configure_ressource_logging() -> logging.Logger:
