@@ -21,9 +21,8 @@ from click import echo, secho, exceptions
 from tile_processor import processor, worker, tileconfig, db, output
 
 log = logging.getLogger(__name__)
-logging.getLogger("pykwalify").setLevel(logging.WARNING)
+# logging.getLogger("pykwalify").setLevel(logging.WARNING)
 
-# FIXME: should find another way of peparing the config, one that does not modify the incoming config
 
 class ConfigurationSchema:
     """Schema for validating a configuration file.
@@ -261,7 +260,7 @@ class Controller:
             proc.configure(**self.cfg)
             res = proc.process(restart=restart)
             results[proc.name] = res
-        log.info(f"Done {self.__class__.__name__}. Failed: {results}")
+        log.info(f"Done {self.__class__.__name__}. {results}")
         return results
 
 

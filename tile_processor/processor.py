@@ -91,9 +91,13 @@ class ThreadProcessor:
         """
         log.info(f"Running {self.__class__.__name__}:{self.name}")
         proc_result = self._process()
-        failed_tiles = [
-            tile for tile, result in proc_result if result is False
-        ]
+        failed_tiles = []
+        nr_success = 0
+        for tile, result in proc_result:
+            if result is False:
+                failed_tiles.append(tile)
+            else:
+                nr_success += 1
         _restart = 0
         while _restart < restart:
             if failed_tiles is not None and len(failed_tiles) > 0:
@@ -104,13 +108,16 @@ class ThreadProcessor:
                 )
                 self.tiles.to_process = failed_tiles
                 proc_result = self._process()
-                failed_tiles = [
-                    tile for tile, result in proc_result if result is False
-                ]
+                failed_tiles = []
+                for tile, result in proc_result:
+                    if result is False:
+                        failed_tiles.append(tile)
+                    else:
+                        nr_success += 1
             else:
                 break
         log.info(f"Done {self.__class__.__name__}:{self.name}")
-        return failed_tiles
+        return {'failed_tiles': failed_tiles, 'nr_success': nr_success}
 
     def _process(self):
         """Runs the workers asynchronously, using a `ThreadPoolExecutor
