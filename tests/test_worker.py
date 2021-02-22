@@ -78,7 +78,7 @@ class TestThreedfier:
         threedfier_controller.run()
 
 
-@pytest.mark.integration_test
+# @pytest.mark.integration_test
 class TestGeoflow:
     def test_for_debug(self, cfg_ahn_geof):
         """Running LoD1.3 reconstruction"""
@@ -94,7 +94,7 @@ class TestGeoflow:
             monitor_interval=10,
         )
         lod13_controller.configure(
-            tiles=tiles, processor_key="threadprocessor", worker_key="LoD13"
+            tiles=tiles, processor_key="threadprocessor", worker_key="BuildingReconstruction"
         )
         lod13_controller.run()
 

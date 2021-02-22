@@ -373,9 +373,9 @@ class Geoflow:
         tiles: DbTilesAHN,
         path_executable: str,
         path_flowchart: str,
-        path_toml: str,
         monitor_log: logging.Logger,
         monitor_interval: int,
+        path_toml: str = None,
         doexec: bool = True,
         **ignore,
     ) -> bool:
@@ -426,7 +426,7 @@ class Geoflow:
             return False
 
 
-class LoD13Worker(Geoflow):
+class BuildingReconstructionWorker(Geoflow):
     def create_configuration(self, tile: str, tiles: DbTilesAHN):
         # Create the Postgres connection string
         dsn_in = (
@@ -445,9 +445,9 @@ class LoD13Worker(Geoflow):
         if tiles.output.db is not None:
             dsn_out = tiles.output.db.dsn_no_relation()
             if tiles.output.db.schema is not None:
-                out_layer_template = f"{tiles.output.db.schema}.{tiles.output.kwargs['table_prefix']}"
+                out_layer_template = f"{tiles.output.db.schema}.{tiles.output.kwargs.get('table_prefix', '')}"
             else:
-                out_layer_template = tiles.output.kwargs["table_prefix"]
+                out_layer_template = tiles.output.kwargs.get("table_prefix", "")
             t_lod12_2d = out_layer_template + "lod12_2d"
             t_lod12_3d = out_layer_template + "lod12_3d"
             t_lod13_2d = out_layer_template + "lod13_2d"
@@ -660,6 +660,6 @@ factory.register_worker("Example", ExampleWorker)
 factory.register_worker("ExampleDb", ExampleDbWorker)
 factory.register_worker("3dfier", ThreedfierWorker)
 factory.register_worker("3dfierTIN", ThreedfierTINWorker)
-factory.register_worker("LoD13", LoD13Worker)
+factory.register_worker("BuildingReconstruction", BuildingReconstructionWorker)
 factory.register_worker("AlphaShape", AlphaShapeWorker)
 factory.register_worker("TileExporter", TileExporter)

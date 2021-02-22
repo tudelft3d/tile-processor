@@ -12,7 +12,8 @@ import json
 import logging
 import os
 from shutil import copyfile
-from typing import TextIO, List
+from typing import List
+from io import TextIOBase
 
 import yaml
 from click import echo, secho, exceptions
@@ -22,6 +23,7 @@ from tile_processor import processor, worker, tileconfig, db, output
 log = logging.getLogger(__name__)
 logging.getLogger("pykwalify").setLevel(logging.WARNING)
 
+# FIXME: should find another way of peparing the config, one that does not modify the incoming config
 
 class ConfigurationSchema:
     """Schema for validating a configuration file.
@@ -168,7 +170,7 @@ class ControllerFactory:
 class Controller:
     def __init__(
         self,
-        configuration: TextIO,
+        configuration: TextIOBase,
         threads: int = 1,
         monitor_log: logging.Logger = None,
         monitor_interval: int = None,
@@ -182,7 +184,7 @@ class Controller:
 
     def parse_configuration(
         self,
-        configuration: TextIO,
+        configuration: TextIOBase,
         threads: int,
         monitor_log: logging.Logger,
         monitor_interval: int,
@@ -309,7 +311,7 @@ class AHNController(Controller):
 
     def parse_configuration(
         self,
-        configuration: TextIO,
+        configuration: TextIOBase,
         threads: int,
         monitor_log: logging.Logger,
         monitor_interval: int,
@@ -327,7 +329,7 @@ class AHNController(Controller):
             log.error("Configuration is empty")
             return cfg
         else:
-            if isinstance(configuration, TextIO):
+            if isinstance(configuration, TextIOBase):
                 try:
                     cfg_stream = self.schema.validate_configuration(configuration)
                     log.info(f"Configuration file is valid")
@@ -337,7 +339,7 @@ class AHNController(Controller):
             elif isinstance(configuration, dict):
                 cfg_stream = configuration
             else:
-                raise ValueError("configuration is neither TextIO nor a dictionary")
+                raise ValueError("configuration is neither TextIOBase nor a dictionary")
 
             cfg["config"] = cfg_stream
             directory_mapping = {}
@@ -471,7 +473,7 @@ class AHNBoundaryController(Controller):
 
     def parse_configuration(
         self,
-        configuration: TextIO,
+        configuration: TextIOBase,
         threads: int,
         monitor_log: logging.Logger,
         monitor_interval: int,
@@ -489,7 +491,7 @@ class AHNBoundaryController(Controller):
             log.error("Configuration is empty")
             return cfg
         else:
-            if isinstance(configuration, TextIO):
+            if isinstance(configuration, TextIOBase):
                 try:
                     cfg_stream = self.schema.validate_configuration(configuration)
                     log.info(f"Configuration file is valid")
@@ -499,7 +501,7 @@ class AHNBoundaryController(Controller):
             elif isinstance(configuration, dict):
                 cfg_stream = configuration
             else:
-                raise ValueError("configuration is neither TextIO nor a dictionary")
+                raise ValueError("configuration is neither TextIOBase nor a dictionary")
 
 
             cfg["config"] = cfg_stream

@@ -7,6 +7,7 @@ import os
 import pytest
 import yaml
 from pathlib import Path
+from typing import TextIO
 from io import StringIO
 from tile_processor import db, output
 
