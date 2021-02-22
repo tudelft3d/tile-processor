@@ -337,14 +337,15 @@ class AHNController(Controller):
                     log.exception(e)
                     raise
             elif isinstance(configuration, dict):
-                cfg_stream = configuration
+                # Makea copy so we can work with frozendict-s from dagster
+                cfg_stream = {**configuration}
             else:
                 raise ValueError("configuration is neither TextIOBase nor a dictionary")
 
             cfg["config"] = cfg_stream
             directory_mapping = {}
             for mapping in cfg_stream["elevation"]["directories"]:
-                dir, properties = mapping.popitem()
+                dir, properties = {**mapping}.popitem()
                 if not os.path.isabs(dir):
                     raise ValueError(
                         f"Path {dir} is not absolute in "
@@ -499,7 +500,8 @@ class AHNBoundaryController(Controller):
                     log.exception(e)
                     raise
             elif isinstance(configuration, dict):
-                cfg_stream = configuration
+                # Makea copy so we can work with frozendict-s from dagster
+                cfg_stream = {**configuration}
             else:
                 raise ValueError("configuration is neither TextIOBase nor a dictionary")
 
@@ -507,7 +509,7 @@ class AHNBoundaryController(Controller):
             cfg["config"] = cfg_stream
             directory_mapping = {}
             for mapping in cfg_stream["elevation"]["directories"]:
-                dir, properties = mapping.popitem()
+                dir, properties = {**mapping}.popitem()
                 if not os.path.isabs(dir):
                     raise ValueError(
                         f"Path {dir} is not absolute in "

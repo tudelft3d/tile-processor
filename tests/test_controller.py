@@ -75,3 +75,19 @@ class TestAHN:
         threedfier_controller.configure(
             tiles=tiles, processor_key="threadprocessor", worker_key=worker_key
         )
+
+    def test_configure_one(self, cfg_ahn_abs, worker_key="BuildingReconstruction"):
+        threads = 3
+        tiles = [
+            "all",
+        ]
+        threedfier_controller = controller.factory.create(
+            "AHN",
+            configuration=cfg_ahn_abs,
+            threads=threads,
+            monitor_log=None,
+            monitor_interval=None,
+        )
+        threedfier_controller.configure(
+            tiles=tiles, processor_key="threadprocessor", worker_key=worker_key
+        )
