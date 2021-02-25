@@ -641,15 +641,12 @@ def run_subprocess(
         finish = time()
         log.info(f"Tile {tile_id} finished in {(finish-start)/60} minutes")
         if popen.returncode != 0:
-            log.error(
-                f"Tile {tile_id} process returned with non-zero exit "
-                f"code {popen.returncode}. Rerun in debug mode to see the stdout and stderr."
-            )
-            log.debug(f"Tile {tile_id} stdout: \n{out}")
-            log.debug(f"Tile {tile_id} stderr: \n{err}")
-            return False
+            log.error(f"Tile {tile_id} process returned with {popen.returncode}")
         else:
-            return True
+            log.debug(f"Tile {tile_id} process returned with {popen.returncode}")
+        log.debug(f"Tile {tile_id} stdout: \n{out}")
+        log.debug(f"Tile {tile_id} stderr: \n{err}")
+        return True if popen.returncode == 0 else False
     else:
         log.debug(f"Tile {tile_id} not executing {command}")
         return True
