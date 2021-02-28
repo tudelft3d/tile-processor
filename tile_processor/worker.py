@@ -448,6 +448,7 @@ class BuildingReconstructionWorker(Geoflow):
                 out_layer_template = f"{tiles.output.db.schema}.{tiles.output.kwargs.get('table_prefix', '')}"
             else:
                 out_layer_template = tiles.output.kwargs.get("table_prefix", "")
+            t_lod11_2d = out_layer_template + "lod11_2d"
             t_lod12_2d = out_layer_template + "lod12_2d"
             t_lod12_3d = out_layer_template + "lod12_3d"
             t_lod13_2d = out_layer_template + "lod13_2d"
@@ -463,6 +464,7 @@ class BuildingReconstructionWorker(Geoflow):
 
         config.append(f"--overwrite_output=false")
 
+        config.append(f"--OUTPUT_SOURCE_LOD11_2D={dsn_out}")
         config.append(f"--OUTPUT_SOURCE_LOD12_2D={dsn_out}")
         config.append(f"--OUTPUT_SOURCE_LOD12_3D={dsn_out}")
         config.append(f"--OUTPUT_SOURCE_LOD13_2D={dsn_out}")
@@ -470,6 +472,7 @@ class BuildingReconstructionWorker(Geoflow):
         config.append(f"--OUTPUT_SOURCE_LOD22_2D={dsn_out}")
         config.append(f"--OUTPUT_SOURCE_LOD22_3D={dsn_out}")
 
+        config.append(f"--OUTPUT_LAYERNAME_LOD11_2D={t_lod11_2d}")
         config.append(f"--OUTPUT_LAYERNAME_LOD12_2D={t_lod12_2d}")
         config.append(f"--OUTPUT_LAYERNAME_LOD12_3D={t_lod12_3d}")
         config.append(f"--OUTPUT_LAYERNAME_LOD13_2D={t_lod13_2d}")
