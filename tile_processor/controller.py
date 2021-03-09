@@ -201,12 +201,18 @@ class Controller:
             log.error("Configuration file is empty")
             return cfg
         else:
-            try:
-                cfg_stream = self.schema.validate_configuration(configuration)
-                log.info(f"Configuration file is valid")
-            except Exception as e:
-                log.exception(e)
-                raise
+            if isinstance(configuration, TextIOBase):
+                try:
+                    cfg_stream = self.schema.validate_configuration(configuration)
+                    log.info(f"Configuration file is valid")
+                except Exception as e:
+                    log.exception(e)
+                    raise
+            elif isinstance(configuration, dict):
+                # Makea copy so we can work with frozendict-s from dagster
+                cfg_stream = {**configuration}
+            else:
+                raise ValueError("configuration is neither TextIOBase nor a dictionary")
             cfg["threads"] = int(threads)
             cfg["monitor_log"] = monitor_log
             cfg["monitor_interval"] = monitor_interval
@@ -267,9 +273,12 @@ class Controller:
 class ExampleController(Controller):
     """Controller for tiles that are stored in PostgreSQL."""
 
-    def configure(self, tiles, processor_key: str, worker_key: str):
+    def configure(self, tiles, processor_key: str, worker_key: str = None, worker = None):
         """Configure the controller."""
-        worker_init = worker.factory.create(worker_key)
+        if worker_key:
+            worker_init = worker.factory.create(worker_key)
+        else:
+            worker_init = worker
         self.cfg["worker"] = worker_init.execute
 
         if worker_key == "Example":
@@ -359,10 +368,13 @@ class AHNController(Controller):
             return cfg
 
     def configure(
-        self, tiles, processor_key: str, worker_key: str, restart: int = 0
+        self, tiles, processor_key: str, worker_key: str = None, worker = None, restart: int = 0
     ):
         """Configure the control logic."""
-        worker_init = worker.factory.create(worker_key)
+        if worker_key:
+            worker_init = worker.factory.create(worker_key)
+        else:
+            worker_init = worker
         self.cfg["worker"] = worker_init.execute
 
         # Configure the tiles
