@@ -219,12 +219,16 @@ class Controller:
             cfg["config"] = cfg_stream
             return cfg
 
-    def configure(self, tiles, processor_key: str, worker_key: str):
+    def configure(self, tiles, processor_key: str, worker_key: str = None,
+                  worker_class = None):
         """Configure the controller.
 
         Input-specific subclasses need to implement this.
         """
-        worker_init = worker.factory.create(worker_key)
+        if worker_key:
+            worker_init = worker.factory.create(worker_key)
+        else:
+            worker_init = worker_class
         self.cfg["worker"] = worker_init.execute
 
         # Configure the tiles (DBTiles in this case)
@@ -273,12 +277,13 @@ class Controller:
 class ExampleController(Controller):
     """Controller for tiles that are stored in PostgreSQL."""
 
-    def configure(self, tiles, processor_key: str, worker_key: str = None, worker = None):
+    def configure(self, tiles, processor_key: str, worker_key: str = None,
+                  worker_class = None):
         """Configure the controller."""
         if worker_key:
             worker_init = worker.factory.create(worker_key)
         else:
-            worker_init = worker
+            worker_init = worker_class
         self.cfg["worker"] = worker_init.execute
 
         if worker_key == "Example":
@@ -368,13 +373,13 @@ class AHNController(Controller):
             return cfg
 
     def configure(
-        self, tiles, processor_key: str, worker_key: str = None, worker = None, restart: int = 0
+        self, tiles, processor_key: str, worker_key: str = None, worker_class = None, restart: int = 0
     ):
         """Configure the control logic."""
         if worker_key:
             worker_init = worker.factory.create(worker_key)
         else:
-            worker_init = worker
+            worker_init = worker_class
         self.cfg["worker"] = worker_init.execute
 
         # Configure the tiles
