@@ -411,10 +411,18 @@ class AHNController(Controller):
             output_obj.db = output.DbOutput(
                 conn=db.Db(**self.cfg["config"]["output"]["database"])
             )
-        elif "dir" in self.cfg["config"]["output"]:
-            output_obj.dir = output.DirOutput(
-                path=self.cfg["config"]["output"]["dir"]
-            )
+        if "dir" in self.cfg["config"]["output"]:
+            # FIXME: Output.dir should be a dict maybe by default?
+            output_obj.dir = {}
+            if isinstance(self.cfg["config"]["output"]["dir"], str):
+                output_obj.dir["path"] = output.DirOutput(
+                    path=self.cfg["config"]["output"]["dir"]
+                )
+            elif isinstance(self.cfg["config"]["output"]["dir"], dict):
+                for k,dirpath in self.cfg["config"]["output"]["dir"].items():
+                    output_obj.dir[k] = output.DirOutput(dirpath)
+            else:
+                raise ValueError(f'Expected str or dict in {self.cfg["config"]["output"]["dir"]}')
         for k, v in self.cfg["config"]["output"].items():
             if k != "database" and k != "dir":
                 output_obj.kwargs[k] = v

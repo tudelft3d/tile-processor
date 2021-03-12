@@ -67,7 +67,12 @@ class ThreadProcessor:
             class instance.
         """
         if self.tiles.output.dir:
-            log.debug(f"Output directory: {self.tiles.output.dir.path}")
+            # FIXME: sanitize Output.dir
+            if isinstance(self.tiles.output.dir, dict):
+                for k,v in self.tiles.output.dir.items():
+                    log.debug(f"Output directory: {k}: {v.path}")
+            else:
+                log.debug(f"Output directory: {self.tiles.output.dir.path}")
         if self.tiles.output.db:
             log.debug(f"Output database: {self.tiles.output.db.dsn}")
         config["tiles"] = self.tiles

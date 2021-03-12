@@ -481,6 +481,9 @@ class BuildingReconstructionWorker(Geoflow):
         config.append(f"--OUTPUT_LAYERNAME_LOD22_3D={t_lod22_3d}")
 
         config.append(f"--OUTPUT_FORMAT={format_out}")
+        if tiles.output.dir is not None and "obj" in tiles.output.dir:
+            config.append(f"--TILE_ID={tile}")
+            config.append(f"--OUTPUT_OBJ_DIR={tiles.output.dir['obj'].path}")
 
         config.append(f"--INPUT_LAS_FILES=")
         config.extend(input_las_files)
