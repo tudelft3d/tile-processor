@@ -363,7 +363,7 @@ class ThreedfierTINWorker:
 
 
 class Geoflow:
-    def create_configuration(self, tile: str, tiles: DbTilesAHN) -> List:
+    def create_configuration(self, tile: str, tiles: DbTilesAHN, kwargs) -> List:
         """Create a tile-specific configuration file."""
         pass
 
@@ -377,6 +377,7 @@ class Geoflow:
         monitor_interval: int,
         path_toml: str = None,
         doexec: bool = True,
+        run_reference: str = None,
         **ignore,
     ) -> bool:
         """Execute Geoflow.
@@ -396,7 +397,8 @@ class Geoflow:
         if len(tiles.elevation_file_index[tile]) == 0:
             log.debug(f"Elevation files are not available for tile {tile}")
             return False
-        config = self.create_configuration(tile=tile, tiles=tiles)
+        kwargs = {"run_reference": run_reference}
+        config = self.create_configuration(tile=tile, tiles=tiles, kwargs=kwargs)
         if config is not None and len(config) > 0:
             if path_toml is not None and len(path_toml) > 0:
                 command = [
@@ -427,7 +429,7 @@ class Geoflow:
 
 
 class BuildingReconstructionWorker(Geoflow):
-    def create_configuration(self, tile: str, tiles: DbTilesAHN):
+    def create_configuration(self, tile: str, tiles: DbTilesAHN, kwargs):
         # Create the Postgres connection string
         dsn_in = (
             f"PG:dbname={tiles.conn.dbname} "
@@ -487,6 +489,8 @@ class BuildingReconstructionWorker(Geoflow):
         if tiles.output.dir is not None and "cityjson" in tiles.output.dir:
             config.append(f"--OUTPUT_CITYJSON_DIR={tiles.output.dir['cityjson'].path}")
 
+        config.append(f"--RUN_REFERENCE={kwargs['run_reference']}")
+
         config.append(f"--INPUT_LAS_FILES=")
         config.extend(input_las_files)
 
@@ -494,7 +498,7 @@ class BuildingReconstructionWorker(Geoflow):
 
 
 class AlphaShapeWorker(Geoflow):
-    def create_configuration(self, tile: str, tiles: DbTilesAHN):
+    def create_configuration(self, tile: str, tiles: DbTilesAHN, kwargs):
         # Select the las file paths for the tile
         input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
         # --OUTPUT_LAYER_PREFIX and table name in tables= in the --OUTPUT_SOURCE must

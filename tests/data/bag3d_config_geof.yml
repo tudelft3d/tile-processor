@@ -68,3 +68,4 @@ path_toml:
 path_lasmerge: /opt/LAStools/install/bin/lasmerge64
 path_ogr2ogr: ogr2ogr
 doexec: true
+run_reference: run_1234
