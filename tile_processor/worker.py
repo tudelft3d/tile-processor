@@ -466,13 +466,7 @@ class BuildingReconstructionWorker(Geoflow):
 
         config.append(f"--overwrite_output=false")
 
-        config.append(f"--OUTPUT_SOURCE_LOD11_2D={dsn_out}")
-        config.append(f"--OUTPUT_SOURCE_LOD12_2D={dsn_out}")
-        config.append(f"--OUTPUT_SOURCE_LOD12_3D={dsn_out}")
-        config.append(f"--OUTPUT_SOURCE_LOD13_2D={dsn_out}")
-        config.append(f"--OUTPUT_SOURCE_LOD13_3D={dsn_out}")
-        config.append(f"--OUTPUT_SOURCE_LOD22_2D={dsn_out}")
-        config.append(f"--OUTPUT_SOURCE_LOD22_3D={dsn_out}")
+        config.append(f"--OUTPUT_DB_CONNECTION={dsn_out}")
 
         config.append(f"--OUTPUT_LAYERNAME_LOD11_2D={t_lod11_2d}")
         config.append(f"--OUTPUT_LAYERNAME_LOD12_2D={t_lod12_2d}")
