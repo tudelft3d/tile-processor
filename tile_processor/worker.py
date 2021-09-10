@@ -457,6 +457,9 @@ class BuildingReconstructionWorker(Geoflow):
             t_lod13_3d = out_layer_template + "lod13_3d"
             t_lod22_2d = out_layer_template + "lod22_2d"
             t_lod22_3d = out_layer_template + "lod22_3d"
+            t_lod12_3d_tri = out_layer_template + "lod12_3d_tri"
+            t_lod13_3d_tri = out_layer_template + "lod13_3d_tri"
+            t_lod22_3d_tri = out_layer_template + "lod22_3d_tri"
             format_out = "PostgreSQL"
         else:
             raise ValueError(f"Invalid Output type {type(tiles.output)}")
@@ -475,6 +478,10 @@ class BuildingReconstructionWorker(Geoflow):
         config.append(f"--OUTPUT_LAYERNAME_LOD13_3D={t_lod13_3d}")
         config.append(f"--OUTPUT_LAYERNAME_LOD22_2D={t_lod22_2d}")
         config.append(f"--OUTPUT_LAYERNAME_LOD22_3D={t_lod22_3d}")
+
+        config.append(f"--OUTPUT_LAYERNAME_LOD12_3D_tri={t_lod12_3d_tri}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD13_3D_tri={t_lod13_3d_tri}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD22_3D_tri={t_lod22_3d_tri}")
 
         config.append(f"--TILE_ID={tile}")
         config.append(f"--OUTPUT_FORMAT={format_out}")
