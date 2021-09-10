@@ -22,7 +22,7 @@ copyright = '2021, Balázs Dukai'
 author = 'Balázs Dukai'
 
 # The full version, including alpha/beta/rc tags
-release = '0.3.6'
+release = '0.3.7'
 
 
 # -- General configuration ---------------------------------------------------
