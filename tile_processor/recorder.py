@@ -34,6 +34,7 @@ def configure_logging(log_level_stream, filename: Optional[str] = None,
         f_handler.setLevel(getattr(logging, log_level_file.upper(), None))
         logger.addHandler(f_handler)
     c_handler = logging.StreamHandler(stream=sys.stdout)
+    c_handler.setFormatter(formatter)
     c_handler.setLevel(log_level_str)
     logger.addHandler(c_handler)
     return logger

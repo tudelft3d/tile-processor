@@ -12,7 +12,7 @@ from tile_processor import recorder, controller, worker
 
 @click.group()
 @click.option(
-    "--log",
+    "--loglevel",
     type=click.Choice(
         ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
     ),
@@ -29,7 +29,7 @@ from tile_processor import recorder, controller, worker
     "The monitoring interval is passed in seconds.",
 )
 @click.pass_context
-def main(ctx, log, monitor):
+def main(ctx, loglevel, monitor):
     """Process data sets in tiles."""
     ctx.ensure_object(dict)
     ctx.obj["monitor_log"] = None
@@ -39,7 +39,7 @@ def main(ctx, log, monitor):
         ctx.obj["monitor_log"] = monitor_log
         ctx.obj["monitor_interval"] = monitor
     # For logging from the click commands
-    ctx.obj["log"] = recorder.configure_logging(log)
+    ctx.obj["log"] = recorder.configure_logging(log_level_stream=loglevel)
     return 0
 
 
