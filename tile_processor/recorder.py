@@ -22,7 +22,7 @@ def configure_logging(log_level_stream, filename: Optional[str] = None,
     log_level_str = getattr(logging, log_level_stream.upper(), None)
 
     logger = logging.getLogger("tile_processor")
-    logger.propagate = True
+    logger.propagate = False
 
     formatter = logging.Formatter(
         fmt="%(asctime)s\t%(name)-24s\t%(lineno)s\t[%(levelname)-8s]\t%(message)s",
