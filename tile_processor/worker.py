@@ -498,6 +498,32 @@ class BuildingReconstructionWorker(Geoflow):
         return config
 
 
+class PCRasteriserWorker(Geoflow):
+    def create_configuration(self, tile: str, tiles: DbTilesAHN, kwargs):
+        # Create the Postgres connection string
+        dsn_in = (
+            f"PG:dbname={tiles.conn.dbname} "
+            f"host={tiles.conn.host} "
+            f"port={tiles.conn.port} "
+            f"user={tiles.conn.user} "
+            f"schemas={tiles.feature_tiles.features.schema.string} "
+            f"tables={tiles.feature_views[tile]}"
+        )
+        if tiles.conn.password:
+            dsn_in += f" password={tiles.conn.password}"
+        # Select the las file paths for the tile
+        input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
+        # Put together the configuration
+        config = []
+        config.append(f"--INPUT_FOOTPRINTS={dsn_in}")
+        config.append(f"--TID={tile}")
+        config.append(f"--OUTPUT_FOLDER={tiles.output.dir.path}")
+        config.append(f"--INPUT_POINTCLOUDS=")
+        config.extend(input_las_files)
+
+        return config
+
+
 class AlphaShapeWorker(Geoflow):
     def create_configuration(self, tile: str, tiles: DbTilesAHN, kwargs):
         # Select the las file paths for the tile
@@ -671,5 +697,6 @@ factory.register_worker("ExampleDb", ExampleDbWorker)
 factory.register_worker("3dfier", ThreedfierWorker)
 factory.register_worker("3dfierTIN", ThreedfierTINWorker)
 factory.register_worker("BuildingReconstruction", BuildingReconstructionWorker)
+factory.register_worker("PCRasterise", PCRasteriserWorker)
 factory.register_worker("AlphaShape", AlphaShapeWorker)
 factory.register_worker("TileExporter", TileExporter)
