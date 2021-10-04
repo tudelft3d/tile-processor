@@ -38,9 +38,8 @@ def main(ctx, log, monitor):
         monitor_log = recorder.configure_ressource_logging()
         ctx.obj["monitor_log"] = monitor_log
         ctx.obj["monitor_interval"] = monitor
-    recorder.configure_logging(log)
     # For logging from the click commands
-    ctx.obj["log"] = logging.getLogger(__name__)
+    ctx.obj["log"] = recorder.configure_logging(log)
     return 0
 
 
