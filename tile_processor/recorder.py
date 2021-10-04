@@ -42,7 +42,8 @@ def configure_logging(log_level_stream, filename: Optional[str] = None,
     handlers.append(c_handler)
     # return logger
     logging.basicConfig(
-        handlers=handlers
+        handlers=handlers,
+        level=log_level_stream
     )
 
 
