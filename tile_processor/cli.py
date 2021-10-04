@@ -17,9 +17,8 @@ from tile_processor import recorder, controller, worker
         ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
     ),
     default="INFO",
-    help="Set the logging level in the log file 'cjdb.log'.",
+    help="Set the logging level.",
 )
-@click.option("--quiet", "-q", count=True, help="Decrease verbosity.")
 @click.option(
     "--monitor",
     "-m",
@@ -30,7 +29,7 @@ from tile_processor import recorder, controller, worker
     "The monitoring interval is passed in seconds.",
 )
 @click.pass_context
-def main(ctx, log, quiet, monitor):
+def main(ctx, log, monitor):
     """Process data sets in tiles."""
     ctx.ensure_object(dict)
     ctx.obj["monitor_log"] = None
