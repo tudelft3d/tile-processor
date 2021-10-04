@@ -19,10 +19,11 @@ def configure_logging(log_level_stream, filename: Optional[str] = None,
     """Configures the general logging in the application
     :param log_level_file:
     """
+    handlers = []
     log_level_str = getattr(logging, log_level_stream.upper(), None)
 
     logger = logging.getLogger("tile_processor")
-    logger.propagate = False
+    logger.propagate = True
 
     formatter = logging.Formatter(
         fmt="%(asctime)s\t%(name)-24s\t%(lineno)s\t[%(levelname)-8s]\t%(message)s",
@@ -32,12 +33,17 @@ def configure_logging(log_level_stream, filename: Optional[str] = None,
         f_handler = logging.FileHandler(filename, mode="w", encoding="utf-8")
         f_handler.setFormatter(formatter)
         f_handler.setLevel(getattr(logging, log_level_file.upper(), None))
-        logger.addHandler(f_handler)
+        # logger.addHandler(f_handler)
+        handlers.append(f_handler)
     c_handler = logging.StreamHandler(stream=sys.stdout)
     c_handler.setFormatter(formatter)
     c_handler.setLevel(log_level_str)
-    logger.addHandler(c_handler)
-    return logger
+    # logger.addHandler(c_handler)
+    handlers.append(c_handler)
+    # return logger
+    logging.basicConfig(
+        handlers=handlers
+    )
 
 
 def configure_ressource_logging() -> logging.Logger:
