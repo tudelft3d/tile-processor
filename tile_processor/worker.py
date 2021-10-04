@@ -517,7 +517,7 @@ class PCRasteriserWorker(Geoflow):
         config = []
         config.append(f"--INPUT_FOOTPRINTS={dsn_in}")
         config.append(f"--TID={tile}")
-        config.append(f"--OUTPUT_FOLDER={tiles.output.dir.path}")
+        config.append(f"--OUTPUT_FOLDER={tiles.output.dir['path']}")
         config.append(f"--INPUT_POINTCLOUDS=")
         config.extend(input_las_files)
 
