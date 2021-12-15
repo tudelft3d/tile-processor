@@ -7,7 +7,7 @@ from time import time
 
 import click
 
-from tile_processor import recorder, controller, worker
+from tile_processor import recorder, controller, worker, __version__
 
 
 @click.group()
@@ -28,6 +28,7 @@ from tile_processor import recorder, controller, worker
     "The log is saved as TSV into tile-resource-usage_<date>.tsv. "
     "The monitoring interval is passed in seconds.",
 )
+@click.version_option(version=__version__)
 @click.pass_context
 def main(ctx, loglevel, monitor):
     """Process data sets in tiles."""
