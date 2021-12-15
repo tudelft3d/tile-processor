@@ -80,7 +80,7 @@ class TestThreedfier:
 
 # @pytest.mark.integration_test
 class TestGeoflow:
-    def test_for_debug(self, cfg_ahn_geof):
+    def test_lod13_for_debug(self, cfg_ahn_geof):
         """Running LoD1.3 reconstruction"""
         threads = 2
         tiles = [
@@ -97,6 +97,42 @@ class TestGeoflow:
             tiles=tiles, processor_key="threadprocessor", worker_key="BuildingReconstruction"
         )
         lod13_controller.run()
+
+    def test_reconstruction_for_debug(self, cfg_ahn_geof_abs):
+        """Running the Building Reconstruction reconstruction"""
+        threads = 1
+        tiles = [
+            "1",
+        ]
+        br_controller = controller.factory.create(
+            "AHN",
+            configuration=cfg_ahn_geof_abs,
+            threads=threads,
+            monitor_log=recorder.configure_ressource_logging(),
+            monitor_interval=10,
+        )
+        br_controller.configure(
+            tiles=tiles, processor_key="threadprocessor", worker_key="BuildingReconstruction"
+        )
+        br_controller.run()
+
+    def test_reconstruction_ahn34_for_debug(self, cfg_ahn_geof_ahn34_abs):
+        """Running the Building Reconstruction reconstruction"""
+        threads = 1
+        tiles = [
+            "1",
+        ]
+        br_controller = controller.factory.create(
+            "AHN",
+            configuration=cfg_ahn_geof_ahn34_abs,
+            threads=threads,
+            monitor_log=recorder.configure_ressource_logging(),
+            monitor_interval=10,
+        )
+        br_controller.configure(
+            tiles=tiles, processor_key="threadprocessor", worker_key="BR-AHN34-Compare"
+        )
+        br_controller.run()
 
 
 class TestTileExporter:

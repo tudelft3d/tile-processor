@@ -134,6 +134,23 @@ def cfg_example(data_dir):
 
 
 @pytest.fixture(scope="function")
+def cfg_ahn_geof_ahn34_abs(data_dir) -> StringIO:
+    """The YAML config file for testing geoflow
+    """
+    with open(data_dir / "bag3d_config_geof_ahn34.yml", "r") as fo:
+        cfg = yaml.full_load(fo)
+        yield StringIO(yaml.dump(cfg))
+
+@pytest.fixture(scope="function")
+def cfg_ahn_geof_abs(data_dir) -> StringIO:
+    """The YAML config file for testing geoflow
+    """
+    with open(data_dir / "bag3d_config_geof.yml", "r") as fo:
+        cfg = yaml.full_load(fo)
+        yield StringIO(yaml.dump(cfg))
+
+
+@pytest.fixture(scope="function")
 def cfg_ahn_abs(cfg_bag3d, data_dir) -> StringIO:
     """Absolute paths of the AHN directories in the directory mapping of the
     configuration file

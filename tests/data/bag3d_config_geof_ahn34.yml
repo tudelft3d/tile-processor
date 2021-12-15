@@ -19,6 +19,10 @@ elevation:
                 file_pattern: "t_{tile}.laz"
                 priority: 1
                 version: 3
+        -   /data/AHN4/tiles_200m:
+                file_pattern: "t_{tile}.laz"
+                priority: 1
+                version: 4
 
 features_tiles:
     boundaries:
@@ -53,10 +57,10 @@ output:
         port: 5560
         user: db3dbag_user
         password: db3dbag_1234
-        schema: debug
+        schema: debug_ahn34
 
 path_executable: /opt/geoflow/bin/geof
-path_flowchart: /home/balazs/Development/3dbag-tools/flowcharts/runner.json
+path_flowchart: /home/balazs/Development/3dbag-tools/flowcharts/AHN34_compare/runner_34-4.json
 path_toml:
 #path_toml: /home/balazs/Development/tile_processor/tests/data/geof_config.toml
 path_lasmerge: /opt/LAStools/install/bin/lasmerge64

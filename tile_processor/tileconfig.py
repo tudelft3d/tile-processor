@@ -323,10 +323,7 @@ class DbTilesAHN(Tiles):
                 paths = []
                 for ahn_id, ahn_version in elevation_match.items():
                     if ahn_id in elevation_file_paths:
-                        paths.extend(
-                            (p, ahn_version)
-                            for p in elevation_file_paths[ahn_id]
-                        )
+                        paths.extend(elevation_file_paths[ahn_id])
                     else:
                         log.debug(
                             f"File matching the AHN ID {ahn_id} not found"
@@ -462,20 +459,40 @@ class DbTilesAHN(Tiles):
                     if file_tile:
                         tile = file_tile.group(0).lower()
                         idx[tile] = [path]
-            f_idx[dir] = idx
+            f_idx[dir] = {"version": properties["version"],
+                          "tiles": idx}
         for dir, properties in reversed(dir_by_priority):
             if len(priority) == 0:
-                file_index = f_idx[dir]
+                file_index = {tile: [{"file_list": f_list,
+                                      "version": f_idx[dir]["version"],
+                                      "priority": properties["priority"]}, ]
+                              for tile, f_list in f_idx[dir]["tiles"].items()}
             else:
                 if priority[-1] == properties["priority"]:
-                    tiles = f_idx[dir].keys()
+                    tiles = f_idx[dir]["tiles"].keys()
                     for t in tiles:
                         try:
-                            file_index[t] += f_idx[dir][t]
+                            file_index[t].append(
+                                {
+                                    "file_list": f_idx[dir]["tiles"][t],
+                                    "version": f_idx[dir]["version"],
+                                    "priority": properties["priority"]
+                                }
+                            )
                         except KeyError:
-                            file_index[t] = f_idx[dir][t]
+                            file_index[t] = [
+                                {
+                                    "file_list": f_idx[dir]["tiles"][t],
+                                    "version": f_idx[dir]["version"],
+                                    "priority": properties["priority"]
+                                },
+                            ]
                 else:
-                    f = {**file_index, **f_idx[dir]}
+                    f = {**file_index, **{tile: [{"file_list": f_list,
+                                                  "version": f_idx[dir]["version"],
+                                                  "priority": properties["priority"]}, ]
+                                          for tile, f_list in
+                                          f_idx[dir]["tiles"].items()}}
                     file_index = f
             priority.append(properties["priority"])
         log.debug(f"File index length: {len(file_index)}")
@@ -500,7 +517,7 @@ class DbTilesAHN(Tiles):
         r = []
         for row in self.conn.get_query(query):
             try:
-                r.append(int(row[0]))
+                r.extend(int(v) for v in row[0])
             except TypeError or ValueError:
                 pass
         return r
@@ -653,7 +670,7 @@ class DbTilesAHN(Tiles):
                 tile_id = tile[0].lower()
                 if tile[1]:
                     if id not in tiles:
-                        tiles[tile_id] = int(tile[1])
+                        tiles[tile_id] = tile[1]
                     else:
                         log.error(f"Tile ID {tile_id} is duplicate")
                 else:

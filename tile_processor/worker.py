@@ -442,7 +442,9 @@ class BuildingReconstructionWorker(Geoflow):
         if tiles.conn.password:
             dsn_in += f" password={tiles.conn.password}"
         # Select the las file paths for the tile
-        input_las_files = [p[0] for p in tiles.elevation_file_index[tile]]
+        input_las_files = []
+        for ahn_tile in tiles.elevation_file_index[tile]:
+            input_las_files.extend(ahn_tile["file_list"])
         # Create the output connection string
         if tiles.output.db is not None:
             dsn_out = tiles.output.db.dsn_no_relation()
@@ -494,6 +496,83 @@ class BuildingReconstructionWorker(Geoflow):
 
         config.append(f"--INPUT_LAS_FILES=")
         config.extend(input_las_files)
+
+        return config
+
+class BuildingReconstructionAHN34CompareWorker(Geoflow):
+    def create_configuration(self, tile: str, tiles: DbTilesAHN, kwargs):
+        # Create the Postgres connection string
+        dsn_in = (
+            f"PG:dbname={tiles.conn.dbname} "
+            f"host={tiles.conn.host} "
+            f"port={tiles.conn.port} "
+            f"user={tiles.conn.user} "
+            f"schemas={tiles.feature_tiles.features.schema.string} "
+            f"tables={tiles.feature_views[tile]}"
+        )
+        if tiles.conn.password:
+            dsn_in += f" password={tiles.conn.password}"
+        # Select the las file paths for the tile
+        input_las_files_ahn3 = []
+        input_las_files_ahn4 = []
+        for ahn_tile in tiles.elevation_file_index[tile]:
+            if ahn_tile["version"] == 3:
+                input_las_files_ahn3.extend(ahn_tile["file_list"])
+            elif ahn_tile["version"] == 4:
+                input_las_files_ahn4.extend(ahn_tile["file_list"])
+        # Create the output connection string
+        if tiles.output.db is not None:
+            dsn_out = tiles.output.db.dsn_no_relation()
+            if tiles.output.db.schema is not None:
+                out_layer_template = f"{tiles.output.db.schema}.{tiles.output.kwargs.get('table_prefix', '')}"
+            else:
+                out_layer_template = tiles.output.kwargs.get("table_prefix", "")
+            t_lod11_2d = out_layer_template + "lod11_2d"
+            t_lod12_2d = out_layer_template + "lod12_2d"
+            t_lod12_3d = out_layer_template + "lod12_3d"
+            t_lod13_2d = out_layer_template + "lod13_2d"
+            t_lod13_3d = out_layer_template + "lod13_3d"
+            t_lod22_2d = out_layer_template + "lod22_2d"
+            t_lod22_3d = out_layer_template + "lod22_3d"
+            t_lod12_3d_tri = out_layer_template + "lod12_3d_tri"
+            t_lod13_3d_tri = out_layer_template + "lod13_3d_tri"
+            t_lod22_3d_tri = out_layer_template + "lod22_3d_tri"
+            format_out = "PostgreSQL"
+        else:
+            raise ValueError(f"Invalid Output type {type(tiles.output)}")
+        # Put together the configuration
+        config = []
+        config.append(f"--INPUT_FOOTPRINT_SOURCE={dsn_in}")
+
+        config.append(f"--overwrite_output=false")
+
+        config.append(f"--OUTPUT_DB_CONNECTION={dsn_out}")
+
+        config.append(f"--OUTPUT_LAYERNAME_LOD11_2D={t_lod11_2d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD12_2D={t_lod12_2d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD12_3D={t_lod12_3d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD13_2D={t_lod13_2d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD13_3D={t_lod13_3d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD22_2D={t_lod22_2d}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD22_3D={t_lod22_3d}")
+
+        config.append(f"--OUTPUT_LAYERNAME_LOD12_3D_tri={t_lod12_3d_tri}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD13_3D_tri={t_lod13_3d_tri}")
+        config.append(f"--OUTPUT_LAYERNAME_LOD22_3D_tri={t_lod22_3d_tri}")
+
+        config.append(f"--TILE_ID={tile}")
+        config.append(f"--OUTPUT_FORMAT={format_out}")
+        if tiles.output.dir is not None and "obj" in tiles.output.dir:
+            config.append(f"--OUTPUT_OBJ_DIR={tiles.output.dir['obj'].path}")
+        if tiles.output.dir is not None and "cityjson" in tiles.output.dir:
+            config.append(f"--OUTPUT_CITYJSON_DIR={tiles.output.dir['cityjson'].path}")
+
+        config.append(f"--RUN_REFERENCE={kwargs['run_reference']}")
+
+        config.append(f"--INPUT_LAS_FILES_AHN3=")
+        config.extend(input_las_files_ahn3)
+        config.append(f"--INPUT_LAS_FILES_AHN4=")
+        config.extend(input_las_files_ahn4)
 
         return config
 
@@ -697,6 +776,7 @@ factory.register_worker("ExampleDb", ExampleDbWorker)
 factory.register_worker("3dfier", ThreedfierWorker)
 factory.register_worker("3dfierTIN", ThreedfierTINWorker)
 factory.register_worker("BuildingReconstruction", BuildingReconstructionWorker)
+factory.register_worker("BR-AHN34-Compare", BuildingReconstructionAHN34CompareWorker)
 factory.register_worker("PCRasterise", PCRasteriserWorker)
 factory.register_worker("AlphaShape", AlphaShapeWorker)
 factory.register_worker("TileExporter", TileExporter)
