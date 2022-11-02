@@ -452,49 +452,30 @@ class BuildingReconstructionWorker(Geoflow):
                 out_layer_template = f"{tiles.output.db.schema}.{tiles.output.kwargs.get('table_prefix', '')}"
             else:
                 out_layer_template = tiles.output.kwargs.get("table_prefix", "")
-            t_lod11_2d = out_layer_template + "lod11_2d"
-            t_lod12_2d = out_layer_template + "lod12_2d"
-            t_lod12_3d = out_layer_template + "lod12_3d"
-            t_lod13_2d = out_layer_template + "lod13_2d"
-            t_lod13_3d = out_layer_template + "lod13_3d"
-            t_lod22_2d = out_layer_template + "lod22_2d"
-            t_lod22_3d = out_layer_template + "lod22_3d"
-            t_lod12_3d_tri = out_layer_template + "lod12_3d_tri"
-            t_lod13_3d_tri = out_layer_template + "lod13_3d_tri"
-            t_lod22_3d_tri = out_layer_template + "lod22_3d_tri"
             format_out = "PostgreSQL"
         else:
             raise ValueError(f"Invalid Output type {type(tiles.output)}")
         # Put together the configuration
         config = []
-        config.append(f"--INPUT_FOOTPRINT_SOURCE={dsn_in}")
+        config.append(f"--input_footprint={dsn_in}")
+        config.append(f"--output_ogr_overwrite=false")
+        config.append(f"--output_ogr={dsn_out}")
+        config.append(f"--output_ogr_format={format_out}")
 
-        config.append(f"--overwrite_output=false")
-
-        config.append(f"--OUTPUT_DB_CONNECTION={dsn_out}")
-
-        config.append(f"--OUTPUT_LAYERNAME_LOD11_2D={t_lod11_2d}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD12_2D={t_lod12_2d}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD12_3D={t_lod12_3d}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD13_2D={t_lod13_2d}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD13_3D={t_lod13_3d}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD22_2D={t_lod22_2d}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD22_3D={t_lod22_3d}")
-
-        config.append(f"--OUTPUT_LAYERNAME_LOD12_3D_tri={t_lod12_3d_tri}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD13_3D_tri={t_lod13_3d_tri}")
-        config.append(f"--OUTPUT_LAYERNAME_LOD22_3D_tri={t_lod22_3d_tri}")
-
-        config.append(f"--TILE_ID={tile}")
-        config.append(f"--OUTPUT_FORMAT={format_out}")
+        file_id = f"3dbag_{kwargs['run_reference']}_{tile}"
         if tiles.output.dir is not None and "obj" in tiles.output.dir:
-            config.append(f"--OUTPUT_OBJ_DIR={tiles.output.dir['obj'].path}")
+            _ol12 = f"{file_id}_lod12.obj"
+            config.append(f"--output_obj_lod12={tiles.output.dir['obj'].path / _ol12}")
+            _ol13 = f"{file_id}_lod13.obj"
+            config.append(f"--output_obj_lod13={tiles.output.dir['obj'].path / _ol13}")
+            _ol22 = f"{file_id}_lod22.obj"
+            config.append(f"--output_obj_lod12={tiles.output.dir['obj'].path / _ol22}")
         if tiles.output.dir is not None and "cityjson" in tiles.output.dir:
-            config.append(f"--OUTPUT_CITYJSON_DIR={tiles.output.dir['cityjson'].path}")
+            _cj = f"{file_id}.city.json"
+            config.append(f"--output_cityjson={tiles.output.dir['cityjson'].path / _cj}")
 
-        config.append(f"--RUN_REFERENCE={kwargs['run_reference']}")
-
-        config.append(f"--INPUT_LAS_FILES=")
+        config.append("--skip_attribute_name=kas_warenhuis")
+        config.append(f"--input_pointcloud=")
         config.extend(input_las_files)
 
         return config
